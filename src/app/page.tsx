@@ -208,10 +208,9 @@ function ExampleCard() {
           <span className="btn-quiet" aria-hidden="true">Copy</span>
         </div>
         <div className="out-body" style={{ fontSize: 14.5 }}>
-          Carhartt WIP Detroit jacket in brown duck canvas with the corduroy collar. Blanket lining,
-          front hand-warmer pockets, chest pocket, all zips and snaps working.{'\n\n'}
-          Worn, and it looks it: fading at the cuffs and elbows, one small paint mark on the left
-          sleeve shown in the photos. No rips, no smell, no repairs.
+          Carhartt WIP Detroit jacket, brown duck canvas, corduroy collar.{'\n'}
+          Size L on the label. Blanket lined, all zips and snaps working.{'\n'}
+          Fading at the cuffs and a small paint mark on the left sleeve, both photographed.
         </div>
       </div>
 

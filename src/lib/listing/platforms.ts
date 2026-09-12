@@ -23,37 +23,49 @@ export interface PlatformSpec {
   descriptionMax: number;
   /** Hashtags are a Depop/Etsy habit; on eBay they look like spam. */
   hashtags: number;
+  /**
+   * Which description this marketplace gets.
+   *
+   * "short" is for places people BROWSE on a phone - a Vinted buyer scrolling
+   * a grid gives a listing a couple of seconds, and a wall of text is scrolled
+   * past. "long" is for places people SEARCH, where the description is also an
+   * index and extra accurate words genuinely find buyers.
+   *
+   * Sending one middle-length text to both is what makes a listing read as
+   * written by a machine that did not know where it was going.
+   */
+  description: 'short' | 'long';
   /** What buyers on this platform scan for first, fed to the prompt. */
   voice: string;
 }
 
 export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
   ebay: {
-    key: 'ebay', label: 'eBay', titleMax: 80, descriptionMax: 4000, hashtags: 0,
+    key: 'ebay', description: 'long', label: 'eBay', titleMax: 80, descriptionMax: 4000, hashtags: 0,
     voice: 'keyword-dense and literal: brand, model, size, colour, condition. Buyers arrive from search, not from browsing.',
   },
   vinted: {
-    key: 'vinted', label: 'Vinted', titleMax: 100, descriptionMax: 3000, hashtags: 0,
+    key: 'vinted', description: 'short', label: 'Vinted', titleMax: 100, descriptionMax: 3000, hashtags: 0,
     voice: 'plain and honest, flaws stated up front. Brand and size matter most; buyers filter by them.',
   },
   depop: {
-    key: 'depop', label: 'Depop', titleMax: 65, descriptionMax: 1000, hashtags: 5,
+    key: 'depop', description: 'short', label: 'Depop', titleMax: 65, descriptionMax: 1000, hashtags: 5,
     voice: 'style-led and short. Name the era or aesthetic a buyer would search (y2k, workwear, oversized).',
   },
   facebook: {
-    key: 'facebook', label: 'Facebook Marketplace', titleMax: 100, descriptionMax: 5000, hashtags: 0,
+    key: 'facebook', description: 'short', label: 'Facebook Marketplace', titleMax: 100, descriptionMax: 5000, hashtags: 0,
     voice: 'local and practical: what it is, condition, whether it works, collection or delivery.',
   },
   poshmark: {
-    key: 'poshmark', label: 'Poshmark', titleMax: 80, descriptionMax: 1500, hashtags: 3,
+    key: 'poshmark', description: 'short', label: 'Poshmark', titleMax: 80, descriptionMax: 1500, hashtags: 3,
     voice: 'brand-first and flattering but accurate; measurements belong in the description.',
   },
   mercari: {
-    key: 'mercari', label: 'Mercari', titleMax: 80, descriptionMax: 1000, hashtags: 0,
+    key: 'mercari', description: 'short', label: 'Mercari', titleMax: 80, descriptionMax: 1000, hashtags: 0,
     voice: 'direct and factual, condition grade early, shipping weight implied by size.',
   },
   etsy: {
-    key: 'etsy', label: 'Etsy', titleMax: 140, descriptionMax: 4000, hashtags: 13,
+    key: 'etsy', description: 'long', label: 'Etsy', titleMax: 140, descriptionMax: 4000, hashtags: 13,
     voice: 'for vintage and handmade: age, era, maker, materials. Long-tail search phrases, not single words.',
   },
 };

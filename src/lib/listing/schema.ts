@@ -66,7 +66,18 @@ export const PlatformCopySchema = z.object({
 export const ListingSchema = z.object({
   item: ItemSchema,
   title: z.string().min(3),
-  description: z.string().min(40),
+  /**
+   * Two lengths, because two kinds of buyer read them.
+   *
+   * `short` is capped hard at 400 characters: on Vinted and Depop the
+   * description competes with a scroll, and the seller's own listings are
+   * three lines. `long` is for eBay and Etsy, where the text is also what the
+   * site searches.
+   */
+  description: z.object({
+    short: z.string().min(30).max(400),
+    long: z.string().min(80).max(900),
+  }),
   bullets: z.array(z.string()).min(2).max(6),
   keywords: z.array(z.string()).min(3).max(15),
   platforms: z.array(PlatformCopySchema).min(1),
@@ -101,11 +112,15 @@ export function renderFor(listing: Listing, platform: Platform): {
     ? []
     : (copy?.hashtags ?? []).slice(0, spec.hashtags).map((t) => (t.startsWith('#') ? t : `#${t}`));
 
-  const body = [
-    listing.description.trim(),
-    listing.bullets.length ? listing.bullets.map((b) => `• ${b}`).join('\n') : '',
-    tags.join(' '),
-  ].filter(Boolean).join('\n\n');
+  // Bullets ride with the long description only. On a phone-browsed
+  // marketplace they turn three readable lines into a spec sheet.
+  const body = spec.description === 'long'
+    ? [
+      listing.description.long.trim(),
+      listing.bullets.length ? listing.bullets.map((b) => `• ${b}`).join('\n') : '',
+      tags.join(' '),
+    ].filter(Boolean).join('\n\n')
+    : [listing.description.short.trim(), tags.join(' ')].filter(Boolean).join('\n\n');
 
   return {
     title: fitTitle(rawTitle, spec.titleMax),

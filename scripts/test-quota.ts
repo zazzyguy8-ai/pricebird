@@ -19,7 +19,7 @@ const LISTING = {
     material: null, motif: null, size_on_label: null, condition: 'good', condition_evidence: ['worn'],
     flaws: [], features: [], era_or_style: null,
   },
-  title: 'A thing', description: 'x'.repeat(60), bullets: ['a', 'b'],
+  title: 'A thing', description: { short: 'x'.repeat(60), long: 'x'.repeat(120) }, bullets: ['a', 'b'],
   keywords: ['a', 'b', 'c'], platforms: [{ platform: 'ebay', title: 'A thing', hashtags: [] }],
   price: { currency: 'USD', low: 1, suggested: 2, high: 3, basis: 'a typical band', confidence: 'low' },
   ask_the_seller: [], photo_tips: [],

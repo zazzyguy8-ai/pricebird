@@ -82,7 +82,22 @@ const LISTING_TOOL: Anthropic.Tool = {
         },
       },
       title: { type: 'string', description: 'Platform-neutral title, under 80 characters.' },
-      description: { type: 'string', description: 'Plain text, under 900 characters, no markdown.' },
+      description: {
+        type: 'object',
+        required: ['short', 'long'],
+        properties: {
+          short: {
+            type: 'string',
+            description: 'Under 400 characters, ideally nearer 250. Three or four short lines, one '
+              + 'fact each, for phone-browsed marketplaces. No greeting, no closing line, no filler.',
+          },
+          long: {
+            type: 'string',
+            description: 'Under 900 characters, for eBay and Etsy where the description is also the '
+              + 'search index. Fuller and more literal - not the short one padded out.',
+          },
+        },
+      },
       bullets: { type: 'array', minItems: 2, maxItems: 6, items: { type: 'string' } },
       keywords: { type: 'array', minItems: 3, maxItems: 15, items: { type: 'string' } },
       platforms: {

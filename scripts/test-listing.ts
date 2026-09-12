@@ -29,7 +29,10 @@ const GOOD_LISTING: Listing = {
     era_or_style: '90s workwear',
   },
   title: 'Carhartt Detroit Jacket Brown Canvas Mens L',
-  description: 'Carhartt Detroit jacket in brown duck canvas with a corduroy collar. Worn, with fading at the cuffs and a small paint mark on the left sleeve shown in the photos.',
+  description: {
+    short: 'Carhartt Detroit jacket, brown duck canvas, corduroy collar.\nSize L on the label.\nFading at the cuffs and a small paint mark on the left sleeve, both photographed.',
+    long: 'Carhartt WIP Detroit jacket in brown duck canvas with the corduroy collar and blanket lining. Size L on the label. Front hand-warmer pockets, chest pocket, all zips and snaps working. Worn: fading at the cuffs and elbows, one small paint mark on the left sleeve, both shown in the photos. No rips, no repairs.',
+  },
   bullets: ['Corduroy collar', 'Blanket lined'],
   keywords: ['carhartt', 'detroit jacket', 'workwear', 'duck canvas'],
   platforms: [
@@ -196,6 +199,36 @@ function schemaRejectsInvention(): void {
   console.log('  ✓ the schema allows "unknown" and refuses an ungrounded grade');
 }
 
+function descriptionLength(): void {
+  // A Vinted buyer scrolling a grid gives a listing two seconds; an eBay buyer
+  // arrived from a search and the text is also the index. One middle-length
+  // blob served to both is what makes a listing read as machine-written.
+  const vinted = renderFor(GOOD_LISTING, 'vinted');
+  const ebay = renderFor(GOOD_LISTING, 'ebay');
+
+  assert.ok(vinted.description.includes('Size L on the label'), 'the short text did not reach Vinted');
+  assert.ok(!vinted.description.includes('blanket lining'), 'Vinted was served the long description');
+  assert.ok(vinted.description.length < ebay.description.length, 'short must be shorter than long');
+
+  assert.ok(ebay.description.includes('blanket lining'), 'eBay was served the short description');
+
+  // Bullets are a spec sheet. They belong with the long text, not under three
+  // readable lines on a phone.
+  assert.ok(ebay.description.includes('• Corduroy collar'), 'the long description lost its bullets');
+  assert.ok(!vinted.description.includes('•'), 'bullets were appended to a phone-browsed listing');
+
+  // The schema, not the prompt, is what keeps short short.
+  assert.throws(
+    () => ListingSchema.parse({
+      ...GOOD_LISTING,
+      description: { ...GOOD_LISTING.description, short: 'x'.repeat(401) },
+    }),
+    /400/,
+    'a 401-character "short" description must not parse',
+  );
+  console.log('  ✓ each marketplace gets the description length it is actually read at');
+}
+
 function platformLimits(): void {
   const long = 'Carhartt WIP Detroit Jacket Brown Duck Canvas Corduroy Collar Blanket Lined Mens Size Large Vintage';
   const overlong: Listing = { ...GOOD_LISTING, platforms: [{ platform: 'ebay', title: long, hashtags: [] }] };
@@ -231,6 +264,7 @@ async function main(): Promise<void> {
   await apiErrorsStayBackstage();
   schemaRejectsInvention();
   platformLimits();
+  descriptionLength();
   console.log('all listing tests passed\n');
 }
 

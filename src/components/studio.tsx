@@ -107,17 +107,34 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
           notes: notes.trim() || null,
         }),
       });
-      const payload = await response.json();
+      // Read the body as text first. A server that fell over answers with an
+      // HTML error page, and calling response.json() on that throws - which
+      // used to land in the catch below and report a dropped connection, a
+      // network story for what was actually a 500 with a cause in the logs.
+      const raw = await response.text();
+      let payload: { error?: string; upgrade?: boolean; quota?: Quota; listing?: Listing } | null = null;
+      try {
+        payload = raw ? JSON.parse(raw) : null;
+      } catch {
+        payload = null;
+      }
 
       if (!response.ok) {
-        setError(payload.error ?? 'The listing could not be written.');
-        setNeedsUpgrade(Boolean(payload.upgrade));
-        if (payload.quota) setQuota(payload.quota);
+        setError(payload?.error
+          ?? `The server answered ${response.status} instead of a listing. If this keeps happening, `
+            + 'open /api/health - it names whatever is not configured.');
+        setNeedsUpgrade(Boolean(payload?.upgrade));
+        if (payload?.quota) setQuota(payload.quota);
         return;
       }
 
-      setListing(payload.listing as Listing);
-      setQuota(payload.quota as Quota);
+      if (!payload?.listing) {
+        setError('The server accepted the photo but sent back no listing. Try again.');
+        return;
+      }
+
+      setListing(payload.listing);
+      if (payload.quota) setQuota(payload.quota);
       setActive(platforms[0]);
     } catch {
       setError('The connection dropped before the listing came back. Try again.');

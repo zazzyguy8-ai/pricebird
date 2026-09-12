@@ -21,9 +21,27 @@ const BodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const { account, setCookie } = await accountForRequest();
+  // Identifying the account touches SESSION_SECRET and the database, and both
+  // throw when they are misconfigured. Left uncaught that became a bare 500
+  // with an HTML body, so the browser reported a dropped connection and the
+  // real cause - a short secret, an unreachable database - stayed in the logs.
+  // These messages are written for a human to act on, so they are passed
+  // through rather than replaced with something vaguer.
+  let account: Awaited<ReturnType<typeof accountForRequest>>['account'];
+  let setCookie: string | null;
+  let quota: Awaited<ReturnType<typeof quotaFor>>;
+  try {
+    ({ account, setCookie } = await accountForRequest());
+    quota = await quotaFor(account);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'The app is not configured.';
+    console.error(`[listing] ${message}`);
+    return NextResponse.json(
+      { error: `This install is not finished: ${message}` },
+      { status: 503 },
+    );
+  }
 
-  const quota = await quotaFor(account);
   if (!quota.allowed) {
     return NextResponse.json({ error: quota.message, quota, upgrade: account.plan === 'free' }, { status: 402 });
   }

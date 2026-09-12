@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { billingConfigProblems } from '@/lib/billing/stripe';
 import { mailConfigProblems } from '@/lib/mail';
 import { getStore } from '@/lib/db';
+import { describeSecret } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -22,10 +23,17 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const checks: Array<{ name: string; ok: boolean; detail: string }> = [];
 
+  // The shape of the key, never the key: a rejected key is almost always a
+  // paste accident, and "present" alone cannot tell that story.
+  const claude = describeSecret('ANTHROPIC_API_KEY', 'sk-ant-');
   checks.push({
     name: 'listings',
-    ok: Boolean(process.env.ANTHROPIC_API_KEY),
-    detail: process.env.ANTHROPIC_API_KEY ? 'Claude key present' : 'ANTHROPIC_API_KEY is not set',
+    ok: claude.present && claude.problems.length === 0,
+    detail: claude.present
+      ? claude.problems.length === 0
+        ? `Claude key present and well formed (${claude.length} characters)`
+        : `Claude key is ${claude.length} characters and ${claude.problems.join('; ')}`
+      : 'ANTHROPIC_API_KEY is not set',
   });
 
   checks.push({

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ZodError } from 'zod';
 import { requireModel, supportsEffort } from '@/lib/models';
+import { readSecret } from '@/lib/secrets';
 import { PLATFORMS, type Platform } from './platforms';
 import { ListingSchema, type Listing } from './schema';
 import { LISTING_SYSTEM, listingPrompt } from './prompts';
@@ -251,7 +252,7 @@ function parse(raw: unknown): Listing {
 export async function generateListing(input: GenerateInput, options: GenerateOptions = {}): Promise<Listing> {
   validate(input);
 
-  const apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY;
+  const apiKey = options.apiKey ?? readSecret('ANTHROPIC_API_KEY');
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set.');
 
   // Resolved before the call so a bad VISION_MODEL fails as configuration

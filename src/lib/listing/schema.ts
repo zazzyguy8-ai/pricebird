@@ -32,6 +32,13 @@ export const ItemSchema = z.object({
   model: z.string().nullable(),
   colour: z.string(),
   material: z.string().nullable(),
+  /**
+   * What is printed, embroidered or appliqued on it, in the words a buyer
+   * would search. Required so the question is always asked - it was missed
+   * when the prompt merely encouraged it, and "floral embroidered" is the
+   * difference between a listing being found and not.
+   */
+  motif: z.string().nullable(),
   size_on_label: z.string().nullable(),
   condition: z.enum(CONDITIONS),
   condition_evidence: z.array(z.string()).min(1).max(5),

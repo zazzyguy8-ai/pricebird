@@ -398,6 +398,7 @@ function Result({ listing, platforms, active, onSelect }: {
           {item.size_on_label && <span className="chip">Size {item.size_on_label}</span>}
           <span className="chip">{item.colour}</span>
           {item.material && <span className="chip">{item.material}</span>}
+          {item.motif && <span className="chip">{item.motif}</span>}
           {item.era_or_style && <span className="chip">{item.era_or_style}</span>}
         </div>
         {item.flaws.length > 0 && (

@@ -20,6 +20,7 @@ const GOOD_LISTING: Listing = {
     model: 'Detroit',
     colour: 'brown',
     material: 'cotton duck canvas',
+    motif: 'embroidered chest logo',
     size_on_label: 'L',
     condition: 'good',
     condition_evidence: ['fading at the cuffs', 'paint mark on the left sleeve'],
@@ -177,6 +178,18 @@ function schemaRejectsInvention(): void {
   const withoutEvidence = { ...GOOD_LISTING, item: { ...GOOD_LISTING.item, condition_evidence: [] } };
   assert.throws(() => ListingSchema.parse(withoutEvidence), /at least 1/i,
     'a condition grade with no evidence behind it must not parse');
+
+  // The motif is what buyers type - "floral embroidered hoodie", not "hoodie".
+  // It was missed when the prompt only encouraged it, so the contract requires
+  // the field to be present; null is the answer for a genuinely plain item.
+  const { motif: _dropped, ...withoutMotif } = GOOD_LISTING.item;
+  assert.throws(
+    () => ListingSchema.parse({ ...GOOD_LISTING, item: withoutMotif }),
+    /motif/i,
+    'a listing with no motif decision at all must not parse',
+  );
+  const plain = ListingSchema.parse({ ...GOOD_LISTING, item: { ...GOOD_LISTING.item, motif: null } });
+  assert.equal(plain.item.motif, null, 'a plain item must be allowed to say so');
 
   const unknownSize = ListingSchema.parse({ ...GOOD_LISTING, item: { ...GOOD_LISTING.item, size_on_label: null } });
   assert.equal(unknownSize.item.size_on_label, null, 'an unreadable size must be allowed to stay empty');

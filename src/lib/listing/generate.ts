@@ -49,7 +49,7 @@ const LISTING_TOOL: Anthropic.Tool = {
     properties: {
       item: {
         type: 'object',
-        required: ['what', 'brand', 'brand_confidence', 'model', 'colour', 'material', 'size_on_label', 'condition', 'condition_evidence', 'flaws', 'features', 'era_or_style'],
+        required: ['what', 'brand', 'brand_confidence', 'model', 'colour', 'material', 'motif', 'size_on_label', 'condition', 'condition_evidence', 'flaws', 'features', 'era_or_style'],
         properties: {
           what: { type: 'string', description: 'The item in buyer words, e.g. "women\'s quilted winter coat"' },
           brand: { type: ['string', 'null'] },
@@ -60,13 +60,23 @@ const LISTING_TOOL: Anthropic.Tool = {
           model: { type: ['string', 'null'] },
           colour: { type: 'string' },
           material: { type: ['string', 'null'], description: 'Only from a care label or unmistakable texture.' },
+          motif: {
+            type: ['string', 'null'],
+            description: 'What is printed, embroidered or appliqued on it, in buyer words: '
+              + '"floral embroidery", "script logo", "graphic print". Describe the shape you can '
+              + 'see - never the emblem you believe the brand uses. Null only when genuinely plain.',
+          },
           size_on_label: { type: ['string', 'null'], description: 'Null unless the label is readable in a photo.' },
           condition: { type: 'string', enum: ['new_with_tags', 'new_without_tags', 'excellent', 'good', 'fair', 'for_parts'] },
           condition_evidence: {
             type: 'array', minItems: 1, maxItems: 5, items: { type: 'string' },
             description: 'What in the photos supports that grade.',
           },
-          flaws: { type: 'array', maxItems: 6, items: { type: 'string' } },
+          flaws: {
+            type: 'array', maxItems: 6, items: { type: 'string' },
+            description: 'Actual damage only. Decorative stitching, coloured seams, embroidery and '
+              + 'deliberate distressing are design, not flaws. Unsure? ask_the_seller instead.',
+          },
           features: { type: 'array', maxItems: 8, items: { type: 'string' } },
           era_or_style: { type: ['string', 'null'], description: 'e.g. "90s workwear", "y2k", null when not distinctive.' },
         },

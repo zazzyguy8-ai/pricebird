@@ -16,7 +16,7 @@ import type { Listing } from '../src/lib/listing/schema';
 const LISTING = {
   item: {
     what: 'thing', brand: null, brand_confidence: 'unknown', model: null, colour: 'black',
-    material: null, size_on_label: null, condition: 'good', condition_evidence: ['worn'],
+    material: null, motif: null, size_on_label: null, condition: 'good', condition_evidence: ['worn'],
     flaws: [], features: [], era_or_style: null,
   },
   title: 'A thing', description: 'x'.repeat(60), bullets: ['a', 'b'],

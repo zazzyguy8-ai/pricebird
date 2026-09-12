@@ -144,6 +144,17 @@ function translate(error: unknown): ListingFailure {
       `Anthropic rejected the API key (${status}): ${detail}`,
     );
   }
+  // 402 is billing_error - a real, separate thing from a rejected key, and the
+  // only one of these the operator fixes with a card rather than a config
+  // change. Worth its own branch so it is never misdiagnosed as a bad key.
+  if (status === 402) {
+    return new ListingFailure(
+      'Pricebird is temporarily out of credit with its AI provider. That is on us - nothing was '
+      + 'charged against your free listings. Try again shortly.',
+      503,
+      `Anthropic billing error (402) - the account is out of credit: ${detail}`,
+    );
+  }
   if (status === 429) {
     return new ListingFailure(
       'Too many listings going through at once. Wait half a minute and press the button again.',

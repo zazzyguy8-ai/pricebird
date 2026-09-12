@@ -222,8 +222,24 @@ export class PgStore implements Store {
 
   private async query<T>(text: string, values: unknown[] = []): Promise<T[]> {
     const pool = await this.client();
-    const result = await pool.query(text, values);
-    return result.rows as T[];
+    try {
+      const result = await pool.query(text, values);
+      return result.rows as T[];
+    } catch (error) {
+      // 42P01 is undefined_table, and on a fresh deployment it means one
+      // thing: the database is reachable and the schema was never applied.
+      // Postgres phrases that as `relation "accounts" does not exist`, which
+      // says nothing about what to do next - and this error travels all the
+      // way to a user staring at a phone.
+      if ((error as { code?: string }).code === '42P01') {
+        throw new Error(
+          'the database is connected but empty - its tables have never been created. '
+          + 'Apply db/schema.sql: run `npm run db:push`, or paste that file into your '
+          + "database provider's SQL editor. It is safe to re-run.",
+        );
+      }
+      throw error;
+    }
   }
 
   async init(): Promise<void> {

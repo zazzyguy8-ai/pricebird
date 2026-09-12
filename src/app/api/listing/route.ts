@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { accountForRequest, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth';
 import { getStore } from '@/lib/db';
 import { quotaFor } from '@/lib/quota';
-import { generateListing, ACCEPTED_IMAGE_TYPES, MAX_IMAGES } from '@/lib/listing/generate';
+import { generateListing, ListingFailure, ACCEPTED_IMAGE_TYPES, MAX_IMAGES } from '@/lib/listing/generate';
 import { PLATFORMS, type Platform } from '@/lib/listing/platforms';
 
 export const runtime = 'nodejs';
@@ -62,9 +62,15 @@ export async function POST(request: Request) {
       notes: body.notes ?? null,
     });
   } catch (error) {
+    if (error instanceof ListingFailure) {
+      // The detail goes to the log, where the operator looks; the seller gets
+      // the sentence written for them.
+      console.error(`[listing] ${error.operator}`);
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    // Everything else here is a rejected upload or a missing setting, and
+    // those messages are already written for a person to act on.
     const message = error instanceof Error ? error.message : 'The listing could not be generated.';
-    // The model and config messages are written for a human to act on, so
-    // they are passed through rather than replaced with "something went wrong".
     return NextResponse.json({ error: message }, { status: 502 });
   }
 

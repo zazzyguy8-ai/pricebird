@@ -104,6 +104,74 @@ const LISTING_TOOL: Anthropic.Tool = {
   },
 };
 
+/**
+ * A failure with two audiences.
+ *
+ * The seller gets `message` - one sentence, no vocabulary they did not ask
+ * for. The log gets `operator`, which is whatever the API actually said.
+ *
+ * This exists because a rejected API key surfaced on a customer's phone as
+ * `401 {"type":"error","error":{"type":"authentication_error","message":
+ * "invalid x-api-key"},"request_id":"req_011Ceyca..."}`. Every word of that is
+ * useful to the person running the service and none of it to the person trying
+ * to sell a jumper, who reasonably concludes the product is broken.
+ */
+export class ListingFailure extends Error {
+  constructor(message: string, readonly status: number, readonly operator: string) {
+    super(message);
+    this.name = 'ListingFailure';
+  }
+}
+
+/**
+ * Turns an API error into the two messages.
+ *
+ * The split is by whose problem it is: a rejected key or a bad request is ours
+ * and says so without blaming the seller, a rate limit or an overload is
+ * temporary and says to try again, and anything unrecognised stays vague to
+ * the seller and verbatim in the log.
+ */
+function translate(error: unknown): ListingFailure {
+  const status = (error as { status?: number }).status;
+  const detail = error instanceof Error ? error.message : String(error);
+
+  if (status === 401 || status === 403) {
+    return new ListingFailure(
+      'Pricebird could not reach its AI - the key it uses was rejected. That is a problem on our '
+      + 'side, not yours, and nothing was charged against your free listings.',
+      503,
+      `Anthropic rejected the API key (${status}): ${detail}`,
+    );
+  }
+  if (status === 429) {
+    return new ListingFailure(
+      'Too many listings going through at once. Wait half a minute and press the button again.',
+      429,
+      `Rate limited by Anthropic: ${detail}`,
+    );
+  }
+  if (status === 529 || status === 503 || (status ?? 0) >= 500) {
+    return new ListingFailure(
+      'Claude is busy right now. Try again in a minute - your photo is still here.',
+      503,
+      `Anthropic unavailable (${status}): ${detail}`,
+    );
+  }
+  if (status === 400) {
+    return new ListingFailure(
+      'That photo was refused by the model. If it is very large or an unusual format, try a normal '
+      + 'photo from your camera roll.',
+      400,
+      `Anthropic rejected the request (400): ${detail}`,
+    );
+  }
+  return new ListingFailure(
+    'The listing could not be written. Try again - if it keeps failing, the photo may be the problem.',
+    502,
+    `Unrecognised failure from Anthropic: ${detail}`,
+  );
+}
+
 export interface GenerateOptions {
   apiKey?: string;
   /** Injectable transport, so the wiring can be tested without a key and
@@ -207,17 +275,25 @@ export async function generateListing(input: GenerateInput, options: GenerateOpt
     },
   ];
 
-  const message = await client.messages.create({
-    model,
-    max_tokens: MAX_TOKENS,
-    // Perception plus short copy: extra deliberation buys nothing here and
-    // every added second is felt, because the user is watching a spinner.
-    ...(supportsEffort(model) ? ({ output_config: { effort: 'low' } } as unknown as Record<string, unknown>) : {}),
-    system: LISTING_SYSTEM,
-    tools: [LISTING_TOOL],
-    tool_choice: { type: 'tool', name: 'submit_listing' },
-    messages: [{ role: 'user', content }],
-  });
+  let message;
+  try {
+    message = await client.messages.create({
+      model,
+      max_tokens: MAX_TOKENS,
+      // Perception plus short copy: extra deliberation buys nothing here and
+      // every added second is felt, because the user is watching a spinner.
+      ...(supportsEffort(model) ? ({ output_config: { effort: 'low' } } as unknown as Record<string, unknown>) : {}),
+      system: LISTING_SYSTEM,
+      tools: [LISTING_TOOL],
+      tool_choice: { type: 'tool', name: 'submit_listing' },
+      messages: [{ role: 'user', content }],
+    });
+  } catch (error) {
+    // Transport and HTTP failures only. A response that arrives and is then
+    // unusable - cut off, refused, malformed - is handled below, where the
+    // messages already speak to the seller.
+    throw translate(error);
+  }
 
   return parse(toolResult(message));
 }

@@ -8,7 +8,7 @@
  * and that no platform limit is ever trusted to the prompt.
  */
 import assert from 'node:assert/strict';
-import { generateListing } from '../src/lib/listing/generate';
+import { generateListing, ListingFailure } from '../src/lib/listing/generate';
 import { fitTitle, PLATFORM_SPECS } from '../src/lib/listing/platforms';
 import { renderFor, ListingSchema, type Listing } from '../src/lib/listing/schema';
 
@@ -122,6 +122,35 @@ async function refusal(): Promise<void> {
   console.log('  ✓ a refusal is explained, not swallowed');
 }
 
+async function apiErrorsStayBackstage(): Promise<void> {
+  const cases: Array<[number, string, RegExp]> = [
+    [401, '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"},"request_id":"req_011Ceyca"}', /key it uses was rejected/],
+    [429, '{"type":"error","error":{"type":"rate_limit_error","message":"rate limited"}}', /Wait half a minute/],
+    [529, '{"type":"error","error":{"type":"overloaded_error","message":"overloaded"}}', /busy right now/],
+  ];
+
+  for (const [status, body, expected] of cases) {
+    const failure = await generateListing(
+      { photos: [PHOTO], platforms: ['ebay'], currency: 'USD' },
+      {
+        apiKey: 'sk-ant-test',
+        fetch: async () => new Response(body, { status, headers: { 'content-type': 'application/json' } }),
+      },
+    ).then(() => null, (error: unknown) => error);
+
+    assert.ok(failure instanceof ListingFailure, `a ${status} did not produce a ListingFailure`);
+    assert.match(failure.message, expected);
+
+    // The whole point: the seller never sees the API's own words.
+    for (const leak of ['x-api-key', 'request_id', 'authentication_error', 'sk-ant']) {
+      assert.ok(!failure.message.includes(leak), `"${leak}" leaked into the message a customer reads`);
+    }
+    // And the operator keeps everything.
+    assert.ok(failure.operator.length > 0, 'nothing was left for the log');
+  }
+  console.log('  ✓ an API failure reaches the seller in their words and the log in full');
+}
+
 async function inputGuards(): Promise<void> {
   const call = (input: Parameters<typeof generateListing>[0]) =>
     generateListing(input, { apiKey: 'sk-ant-test', fetch: async () => stubResponse(toolMessage(GOOD_LISTING)) });
@@ -186,6 +215,7 @@ async function main(): Promise<void> {
   await budgetFailure();
   await refusal();
   await inputGuards();
+  await apiErrorsStayBackstage();
   schemaRejectsInvention();
   platformLimits();
   console.log('all listing tests passed\n');

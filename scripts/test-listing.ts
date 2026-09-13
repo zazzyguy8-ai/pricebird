@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { generateListing, ListingFailure } from '../src/lib/listing/generate';
 import { fitTitle, PLATFORM_SPECS } from '../src/lib/listing/platforms';
 import { renderFor, ListingSchema, type Listing } from '../src/lib/listing/schema';
+import { listingsToCsv } from '../src/lib/listing/csv';
 
 const GOOD_LISTING: Listing = {
   item: {
@@ -255,6 +256,64 @@ function platformLimits(): void {
   console.log('  ✓ every platform limit is enforced in code, not asked for in a prompt');
 }
 
+function csvSurvivesRealContent(): void {
+  // Every one of these breaks a CSV built by joining on commas, and every one
+  // occurs constantly in real listings.
+  const nasty: Listing = {
+    ...GOOD_LISTING,
+    title: 'Jacket, brown, size L',
+    // renderFor takes the per-platform title, so that is the one that has to
+    // survive the escaping - overriding only the generic title tests nothing.
+    platforms: [{ platform: 'ebay', title: 'Jacket, brown, size L', hashtags: [] }],
+    description: {
+      short: 'Line one\nLine two with a "quote"',
+      long: 'Chest measures 24" flat.\r\nSleeve 25".',
+    },
+    item: { ...GOOD_LISTING.item, flaws: ['scuff, small', 'mark on the "left" cuff'] },
+  };
+
+  const csv = listingsToCsv([{ listing: nasty, platform: 'ebay' }]);
+  const [header] = csv.split('\r\n');
+  assert.ok(header.startsWith('\uFEFF'), 'no BOM - Excel will mangle accented characters');
+  assert.ok(header.includes('title_length'), 'the header lost a column');
+
+  // A quoted field may contain commas and newlines; the row count must not
+  // grow because a description had a line break in it.
+  assert.ok(csv.includes('"Jacket, brown, size L"'), 'a comma in the title was not quoted');
+  assert.ok(csv.includes('24"" flat'), 'a measurement quote in the long description was not escaped');
+
+  // The short description goes to the phone-browsed marketplaces, so its own
+  // quotes and newlines have to survive too - they travel in a different cell.
+  const short = listingsToCsv([{ listing: nasty, platform: 'vinted' }]);
+  assert.ok(short.includes('""quote""'), 'an embedded quote in the short description was not doubled');
+
+  // The row count is what a naive implementation gets wrong: descriptions
+  // contain line breaks, and unquoted they turn two listings into six rows
+  // that a bulk uploader then rejects. Counting has to respect quoting too -
+  // a CRLF inside a quoted field is content, not a record boundary, which is
+  // exactly what RFC 4180 says and what Excel expects.
+  const records = (csvText: string): number => {
+    let count = 0;
+    let inQuotes = false;
+    for (let i = 0; i < csvText.length; i += 1) {
+      if (csvText[i] === '"') inQuotes = !inQuotes;
+      else if (!inQuotes && csvText[i] === '\r' && csvText[i + 1] === '\n') count += 1;
+    }
+    return count;
+  };
+
+  const twoRows = listingsToCsv([
+    { listing: nasty, platform: 'ebay' },
+    { listing: nasty, platform: 'vinted' },
+  ]);
+  assert.equal(records(twoRows), 3, 'two listings must be a header and two records');
+  assert.ok(
+    twoRows.includes('flat.\r\nSleeve'),
+    'a line break inside a description must be preserved, not stripped',
+  );
+  console.log('  ✓ the export survives commas, quotes and newlines in real listings');
+}
+
 async function main(): Promise<void> {
   console.log('listing');
   await wiring();
@@ -265,6 +324,7 @@ async function main(): Promise<void> {
   schemaRejectsInvention();
   platformLimits();
   descriptionLength();
+  csvSurvivesRealContent();
   console.log('all listing tests passed\n');
 }
 

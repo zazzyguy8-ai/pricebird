@@ -46,6 +46,7 @@ export function Nav({ cta = 'Start free' }: { cta?: string }) {
           Pricebird
         </Link>
         <nav className="nav-links">
+          <Link href="/bulk" className="hide-sm">Bulk</Link>
           <Link href="/pricing" className="hide-sm">Pricing</Link>
           <Link href="/signin" className="hide-sm">Sign in</Link>
           <Link href="/app" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: 14 }}>{cta}</Link>

@@ -53,7 +53,7 @@ export default function Home() {
           <div className="shell">
             <div className="grid-2" style={{ gap: 40, alignItems: 'center' }}>
               <div className="stack" style={{ gap: 22 }}>
-                <span className="pill pill-accent">5 free · no signup</span>
+                <span className="pill pill-accent">5 free · no signup · 20 at a time</span>
                 <h1>What&apos;s it worth?<br /><span>Ask the bird.</span></h1>
                 <p className="lede">
                   Photograph anything you are selling. Pricebird reads the photo and gives you a
@@ -114,6 +114,48 @@ export default function Home() {
                   <p className="dim" style={{ fontSize: 14.5 }}>{s.body}</p>
                 </article>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div className="shell">
+            <div className="grid-2" style={{ gap: 40, alignItems: 'center' }}>
+              <div className="stack" style={{ gap: 18 }}>
+                <span className="eyebrow">Or the whole pile</span>
+                <h2>Twenty items. One go.</h2>
+                <p className="lede">
+                  Photograph everything, drop it all in at once, come back to finished listings and
+                  a spreadsheet you paste straight into a bulk uploader.
+                </p>
+                <p className="dim" style={{ fontSize: 15 }}>
+                  This is the part you cannot do in a chat window. There, twenty items is twenty
+                  prompts, twenty waits and twenty copies. Here it is one drag and a cup of tea.
+                </p>
+                <div className="row">
+                  <Link href="/bulk" className="btn btn-primary">Try the pile</Link>
+                </div>
+              </div>
+
+              <div className="card stack" style={{ gap: 10 }}>
+                <div className="spread">
+                  <span className="out-label">Batch · 20 items</span>
+                  <span className="pill pill-accent">CSV out</span>
+                </div>
+                {[
+                  ['Carhartt Detroit jacket, brown, L', '£95', 'done'],
+                  ['Nike Air Max 90, white, UK 9', '£48', 'done'],
+                  ['Zara wool coat, camel, M', '£32', 'done'],
+                  ['Levi\u2019s 501, mid wash, W32 L34', '£28', 'reading'],
+                ].map(([title, price, state]) => (
+                  <div key={title} className="card card-tight spread" style={{ boxShadow: 'none' }}>
+                    <span className="small" style={{ minWidth: 0 }}>{title}</span>
+                    {state === 'done'
+                      ? <span className="small mono accent">{price}</span>
+                      : <span className="pill">reading…</span>}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>

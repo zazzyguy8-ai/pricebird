@@ -118,6 +118,30 @@ async function main(): Promise<void> {
   assert.equal(normalizeReferralCode('xy'), null, 'something too short is not a code');
   console.log('  ✓ referrals attach once, reward once, and use codes people can type');
 
+  // ---- rate limiting ---------------------------------------------------
+  // The count is the easy half. The half that breaks in production is the
+  // rollover: a bucket that never resets locks a real user out forever, and
+  // one that resets on every read is not a limit at all.
+  for (let i = 1; i <= 3; i += 1) {
+    const verdict = await store.hitRateLimit('test:bucket', 3, 60);
+    assert.equal(verdict.count, i);
+    assert.ok(verdict.allowed, `hit ${i} of 3 should be allowed`);
+  }
+  const overflow = await store.hitRateLimit('test:bucket', 3, 60);
+  assert.equal(overflow.allowed, false, 'the fourth hit against a limit of three must be refused');
+  assert.ok(new Date(overflow.resetAt).getTime() > Date.now(), 'a refusal must say when it lifts');
+
+  // Buckets are independent: one abuser must not lock out everybody else.
+  const separate = await store.hitRateLimit('test:different', 3, 60);
+  assert.ok(separate.allowed && separate.count === 1, 'a separate key must have its own count');
+
+  // A window that has passed starts again from one.
+  const expired = await store.hitRateLimit('test:expiring', 2, -1);
+  assert.equal(expired.count, 1);
+  const afterExpiry = await store.hitRateLimit('test:expiring', 2, -1);
+  assert.equal(afterExpiry.count, 1, 'an elapsed window must roll over rather than accumulate');
+  console.log('  ✓ rate limits count, refuse, roll over and stay independent');
+
   await rm(dir, { recursive: true, force: true });
   console.log('all quota tests passed\n');
 }

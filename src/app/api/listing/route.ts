@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { accountForRequest, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth';
 import { getStore } from '@/lib/db';
 import { quotaFor } from '@/lib/quota';
+import { checkLimit, clientAddress } from '@/lib/rate-limit';
 import { generateListing, ListingFailure, ACCEPTED_IMAGE_TYPES, MAX_IMAGES } from '@/lib/listing/generate';
 import { PLATFORMS, type Platform } from '@/lib/listing/platforms';
 
@@ -44,6 +45,24 @@ export async function POST(request: Request) {
 
   if (!quota.allowed) {
     return NextResponse.json({ error: quota.message, quota, upgrade: account.plan === 'free' }, { status: 402 });
+  }
+
+  // Paying customers are never rate limited by address: they have a card on
+  // file, which identifies them far better than an IP, and a shared office or
+  // a phone network must not make a customer look like an abuser.
+  if (account.plan !== 'pro') {
+    const limit = await checkLimit(
+      'anonymousListings',
+      clientAddress(request),
+      'This connection has used a lot of free listings today. Go Pro for unlimited, or come back '
+      + 'tomorrow - the free tier is meant for trying it out, not for running a shop on.',
+    );
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: limit.message, upgrade: true },
+        { status: 429, headers: { 'retry-after': String(limit.retryAfter) } },
+      );
+    }
   }
 
   let body: z.infer<typeof BodySchema>;

@@ -42,3 +42,14 @@ alter table accounts add column if not exists referral_rewarded_at timestamptz;
 alter table accounts add column if not exists bonus_listings      integer not null default 0;
 
 create index if not exists accounts_referred_by_idx on accounts (referred_by);
+
+-- Rate limiting. One row per bucket, rolled over in place rather than
+-- appended to, so the table stays the size of the number of active keys
+-- instead of growing with traffic.
+create table if not exists rate_limits (
+  key      text primary key,
+  count    integer not null,
+  reset_at timestamptz not null
+);
+
+create index if not exists rate_limits_reset_idx on rate_limits (reset_at);

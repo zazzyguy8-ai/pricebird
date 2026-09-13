@@ -39,6 +39,7 @@ export default function PricingPage() {
                   <li>All seven marketplaces</li>
                   <li>Price range and condition grade</li>
                   <li>Up to four photos per item</li>
+                  <li>Bulk mode — limited by the 5, but you can see it work</li>
                 </ul>
                 <div className="grow" />
                 <Link href="/app" className="btn btn-ghost btn-block">Start writing</Link>
@@ -52,6 +53,7 @@ export default function PricingPage() {
                 </div>
                 <ul>
                   <li>Unlimited listings in practice ({PLANS.pro.limit} a month fair use)</li>
+                  <li>The whole pile: 20 items at once, and a CSV for bulk uploaders</li>
                   <li>Every marketplace, every time — write once, paste everywhere</li>
                   <li>Your listings saved and searchable</li>
                   <li>Cancel in one click, keeps working to the end of the period</li>

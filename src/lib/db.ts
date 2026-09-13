@@ -60,8 +60,17 @@ export interface BillingUpdate {
   current_period_end?: string | null;
 }
 
+export interface RateVerdict {
+  allowed: boolean;
+  count: number;
+  limit: number;
+  resetAt: string;
+}
+
 export interface Store {
   init(): Promise<void>;
+  /** Counts one hit against a bucket and says whether it is over. */
+  hitRateLimit(key: string, limit: number, windowSeconds: number): Promise<RateVerdict>;
   createAccount(email?: string | null, referredBy?: string | null): Promise<Account>;
   findAccountByReferralCode(code: string): Promise<Account | null>;
   countReferrals(accountId: string): Promise<number>;
@@ -105,15 +114,18 @@ function blankAccount(email: string | null, referredBy: string | null): Account 
  * Local store: a JSON file, for development and the offline tests.
  * ------------------------------------------------------------------ */
 
+interface RateRow { key: string; count: number; reset_at: string }
+
 interface Snapshot {
   accounts: Account[];
   listings: SavedListing[];
   codes: LoginCode[];
+  rates?: RateRow[];
 }
 
 export class FileStore implements Store {
   private path: string;
-  private data: Snapshot = { accounts: [], listings: [], codes: [] };
+  private data: Snapshot = { accounts: [], listings: [], codes: [], rates: [] };
 
   constructor(path = process.env.PRICEBIRD_DATA_FILE ?? join(process.cwd(), '.data', 'pricebird.json')) {
     this.path = path;
@@ -123,8 +135,26 @@ export class FileStore implements Store {
     try {
       this.data = JSON.parse(await readFile(this.path, 'utf8')) as Snapshot;
     } catch {
-      this.data = { accounts: [], listings: [], codes: [] };
+      this.data = { accounts: [], listings: [], codes: [], rates: [] };
     }
+    this.data.rates ??= [];
+  }
+
+  async hitRateLimit(key: string, limit: number, windowSeconds: number): Promise<RateVerdict> {
+    const rates = (this.data.rates ??= []);
+    const now = Date.now();
+    const existing = rates.find((r) => r.key === key);
+
+    if (!existing || new Date(existing.reset_at).getTime() <= now) {
+      const row = { key, count: 1, reset_at: new Date(now + windowSeconds * 1000).toISOString() };
+      if (existing) Object.assign(existing, row); else rates.push(row);
+      await this.flush();
+      return { allowed: true, count: 1, limit, resetAt: row.reset_at };
+    }
+
+    existing.count += 1;
+    await this.flush();
+    return { allowed: existing.count <= limit, count: existing.count, limit, resetAt: existing.reset_at };
   }
 
   private async flush(): Promise<void> {
@@ -281,6 +311,29 @@ export class PgStore implements Store {
 
   async init(): Promise<void> {
     await this.query('select 1');
+  }
+
+  /**
+   * One statement, so two requests arriving together cannot both read a count
+   * of four and both decide they are allowed. The rollover is part of the same
+   * upsert for the same reason.
+   */
+  async hitRateLimit(key: string, limit: number, windowSeconds: number): Promise<RateVerdict> {
+    const [row] = await this.query<{ count: number; reset_at: string }>(
+      `insert into rate_limits (key, count, reset_at)
+       values ($1, 1, now() + ($2 || ' seconds')::interval)
+       on conflict (key) do update set
+         count = case when rate_limits.reset_at <= now() then 1 else rate_limits.count + 1 end,
+         reset_at = case when rate_limits.reset_at <= now() then excluded.reset_at else rate_limits.reset_at end
+       returning count, reset_at`,
+      [key, String(windowSeconds)],
+    );
+    return {
+      allowed: row.count <= limit,
+      count: row.count,
+      limit,
+      resetAt: new Date(row.reset_at).toISOString(),
+    };
   }
 
   async createAccount(email: string | null = null, referredBy: string | null = null): Promise<Account> {

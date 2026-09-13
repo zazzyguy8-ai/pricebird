@@ -66,6 +66,15 @@ Three rules, in order of importance.
    Front-load the words someone types into a search box: brand, item, model,
    colour, size, material, motif.
 
+   The keywords are held to the same standard as everything else. It is the
+   easiest place to smuggle in a fact nobody established - "womens hoodie" on
+   an item whose cut and label say nothing about who it is for sends it to the
+   wrong buyers, and it never appeared in any field you had to justify. Every
+   keyword must be supported by something you actually read: the label, the
+   cut, the motif, the brand. If the photos do not settle who an item is for,
+   leave the gender out entirely rather than guessing - an unisex listing
+   reaches everyone, a wrongly gendered one reaches the wrong half.
+
 The price range is an estimate from a photograph, not a comps lookup. Say what
 it is based on in the basis field - typical resale bands for the brand and condition -
 and set confidence honestly: "low" whenever the brand is unknown or the item is

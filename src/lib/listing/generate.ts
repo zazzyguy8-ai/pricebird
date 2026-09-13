@@ -99,7 +99,12 @@ const LISTING_TOOL: Anthropic.Tool = {
         },
       },
       bullets: { type: 'array', minItems: 2, maxItems: 6, items: { type: 'string' } },
-      keywords: { type: 'array', minItems: 3, maxItems: 15, items: { type: 'string' } },
+      keywords: {
+        type: 'array', minItems: 3, maxItems: 15, items: { type: 'string' },
+        description: 'Search terms, each supported by something actually read from the photos or '
+          + 'the label. No gender unless the item establishes it - a wrongly gendered listing '
+          + 'reaches the wrong half of the market.',
+      },
       platforms: {
         type: 'array', minItems: 1,
         items: {

@@ -148,6 +148,18 @@ export function codeExpiry(): string {
 export async function claimEmail(currentId: string, email: string): Promise<Account> {
   const store = await getStore();
   const owner = await store.findAccountByEmail(email);
-  if (owner) return owner;
-  return store.attachEmail(currentId, email);
+  if (!owner) return store.attachEmail(currentId, email);
+  if (owner.id === currentId) return owner;
+
+  // The case this exists for: five listings made on a phone, then a sign-in
+  // on a laptop with an address that already has an account. Switching the
+  // session alone left those five behind with no way to reach them - the
+  // person is told their listings are saved and then they are gone.
+  //
+  // Their usage moves with them, which is the honest direction: the listings
+  // were made and they count against the allowance.
+  const moved = await store.absorbAccount(currentId, owner.id);
+  if (moved > 0) console.info(`[auth] merged ${moved} listings into ${owner.id}`);
+  // Re-read so the caller sees the absorbed bonus, not the pre-merge row.
+  return (await store.getAccount(owner.id)) ?? owner;
 }

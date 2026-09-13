@@ -66,6 +66,36 @@ export async function createCheckout(account: Account, interval: Interval): Prom
     );
   }
 
+  const referred = Boolean(account.referred_by && !account.referral_rewarded_at);
+
+  try {
+    return await openCheckout(account, priceId, referred);
+  } catch (error) {
+    // A coupon that was deleted, expired, or never created must not stand
+    // between somebody and paying us. Losing the discount is a support
+    // conversation; losing the sale is not recoverable, and the person who
+    // sees the failure has no idea a coupon was involved.
+    if (referred && isCouponProblem(error)) {
+      console.error(`[stripe] referral coupon unusable, selling without it: ${describe(error)}`);
+      return openCheckout(account, priceId, false);
+    }
+    throw error;
+  }
+}
+
+function describe(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** Stripe reports a bad coupon as a resource problem on the discounts field
+ *  rather than with a dedicated code, so the check is deliberately broad -
+ *  the fallback is harmless either way. */
+function isCouponProblem(error: unknown): boolean {
+  const message = describe(error).toLowerCase();
+  return message.includes('coupon') || message.includes('discount');
+}
+
+async function openCheckout(account: Account, priceId: string, withReferral: boolean): Promise<string> {
   const session = await client().checkout.sessions.create({
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
@@ -82,7 +112,7 @@ export async function createCheckout(account: Account, interval: Interval): Prom
     // A referred friend's first month is free. Stripe rejects a session that
     // carries both a discount and the promotion-code box, so it is one or the
     // other - and an automatic discount beats asking someone to find a code.
-    ...(account.referred_by && !account.referral_rewarded_at
+    ...(withReferral
       ? { discounts: [{ coupon: REFERRAL_COUPON_ID }] }
       : { allow_promotion_codes: true }),
     success_url: `${appUrl()}/app?welcome=1`,

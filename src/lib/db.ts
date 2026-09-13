@@ -75,6 +75,8 @@ export interface Store {
   findAccountByReferralCode(code: string): Promise<Account | null>;
   countReferrals(accountId: string): Promise<number>;
   markReferralRewarded(accountId: string): Promise<void>;
+  /** Moves one account's listings and earned bonus onto another. */
+  absorbAccount(fromId: string, intoId: string): Promise<number>;
   addBonusListings(accountId: string, listings: number): Promise<void>;
   getAccount(id: string): Promise<Account | null>;
   findAccountByEmail(email: string): Promise<Account | null>;
@@ -181,6 +183,22 @@ export class FileStore implements Store {
     const account = this.data.accounts.find((a) => a.id === accountId);
     if (account) account.referral_rewarded_at = nowIso();
     await this.flush();
+  }
+
+  async absorbAccount(fromId: string, intoId: string): Promise<number> {
+    if (fromId === intoId) return 0;
+    const moved = this.data.listings.filter((l) => l.account_id === fromId);
+    for (const listing of moved) listing.account_id = intoId;
+
+    const from = this.data.accounts.find((a) => a.id === fromId);
+    const into = this.data.accounts.find((a) => a.id === intoId);
+    if (from && into) {
+      into.bonus_listings += from.bonus_listings;
+      from.bonus_listings = 0;
+    }
+    this.data.accounts = this.data.accounts.filter((a) => a.id !== fromId);
+    await this.flush();
+    return moved.length;
   }
 
   async addBonusListings(accountId: string, listings: number): Promise<void> {
@@ -363,6 +381,30 @@ export class PgStore implements Store {
 
   async markReferralRewarded(accountId: string): Promise<void> {
     await this.query('update accounts set referral_rewarded_at = now() where id = $1', [accountId]);
+  }
+
+  async absorbAccount(fromId: string, intoId: string): Promise<number> {
+    if (fromId === intoId) return 0;
+
+    const [moved] = await this.query<{ count: string }>(
+      'with moved as (update listings set account_id = $2 where account_id = $1 returning 1) '
+      + 'select count(*)::text as count from moved',
+      [fromId, intoId],
+    );
+
+    await this.query(
+      `update accounts set bonus_listings = bonus_listings
+         + coalesce((select bonus_listings from accounts where id = $1), 0)
+       where id = $2`,
+      [fromId, intoId],
+    );
+
+    // Anything still pointing at the absorbed row - a referral it made - is
+    // repointed before the row goes, or the delete fails on its own
+    // foreign key and the sign-in breaks.
+    await this.query('update accounts set referred_by = $2 where referred_by = $1', [fromId, intoId]);
+    await this.query('delete from accounts where id = $1', [fromId]);
+    return Number(moved?.count ?? 0);
   }
 
   async addBonusListings(accountId: string, listings: number): Promise<void> {

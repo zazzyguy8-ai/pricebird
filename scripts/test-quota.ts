@@ -118,6 +118,30 @@ async function main(): Promise<void> {
   assert.equal(normalizeReferralCode('xy'), null, 'something too short is not a code');
   console.log('  ✓ referrals attach once, reward once, and use codes people can type');
 
+  // ---- account merge on sign-in ----------------------------------------
+  // Somebody makes listings on a phone, then signs in on a laptop with an
+  // address that already has an account. Before the merge those listings were
+  // stranded on a row nothing could reach again - after being told they were
+  // saved.
+  const onPhone = await store.createAccount();
+  await store.saveListing(onPhone.id, 'vinted', LISTING);
+  await store.saveListing(onPhone.id, 'ebay', LISTING);
+  await store.addBonusListings(onPhone.id, 30);
+
+  const onLaptop = await store.createAccount('both@example.com');
+  await store.saveListing(onLaptop.id, 'depop', LISTING);
+
+  const moved = await store.absorbAccount(onPhone.id, onLaptop.id);
+  assert.equal(moved, 2, 'both listings must move');
+  assert.equal(await store.countListings(onLaptop.id), 3, 'the history is the sum of the two');
+  assert.equal(await store.countListings(onPhone.id), 0);
+  assert.equal(await store.getAccount(onPhone.id), null, 'the absorbed account is gone');
+
+  const merged = await store.getAccount(onLaptop.id);
+  assert.equal(merged?.bonus_listings, 30, 'earned bonus listings travel with the account');
+  assert.equal(await store.absorbAccount(onLaptop.id, onLaptop.id), 0, 'merging into itself is a no-op');
+  console.log('  ✓ signing in on a second device keeps the listings made on the first');
+
   // ---- rate limiting ---------------------------------------------------
   // The count is the easy half. The half that breaks in production is the
   // rollover: a bucket that never resets locks a real user out forever, and

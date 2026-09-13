@@ -1,5 +1,3 @@
-import { randomInt } from 'node:crypto';
-
 /**
  * Give a month, get a month.
  *
@@ -33,9 +31,30 @@ export const REFERRAL_COUPON_ID = 'pricebird_referral_first_month';
  */
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
+/**
+ * Web Crypto rather than node:crypto, because this module is imported by the
+ * middleware and that runs on the Edge runtime, where node: schemes do not
+ * resolve and the build fails outright.
+ *
+ * Values that would skew the modulo are rejected rather than folded: with a
+ * 31-character alphabet, 256 % 31 leaves eight residues that would otherwise
+ * appear more often than the rest.
+ */
 export function generateReferralCode(length = 6): string {
+  const limit = 256 - (256 % ALPHABET.length);
+  const bytes = new Uint8Array(length * 2);
   let code = '';
-  for (let i = 0; i < length; i += 1) code += ALPHABET[randomInt(0, ALPHABET.length)];
+  let i = bytes.length;
+
+  while (code.length < length) {
+    if (i >= bytes.length) {
+      crypto.getRandomValues(bytes);
+      i = 0;
+    }
+    const byte = bytes[i];
+    i += 1;
+    if (byte < limit) code += ALPHABET[byte % ALPHABET.length];
+  }
   return code;
 }
 

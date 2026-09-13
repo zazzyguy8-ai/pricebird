@@ -95,29 +95,62 @@ function isCouponProblem(error: unknown): boolean {
   return message.includes('coupon') || message.includes('discount');
 }
 
-async function openCheckout(account: Account, priceId: string, withReferral: boolean): Promise<string> {
-  const session = await client().checkout.sessions.create({
+/**
+ * The parameters for one checkout session, built as a value so they can be
+ * tested without a Stripe key.
+ *
+ * This exists because of the bug it now prevents. The session carried
+ * `customer_creation: 'always'`, which is only legal in `payment` mode -
+ * subscriptions always create a customer, so Stripe rejects the parameter
+ * outright. Nothing caught it: the code type-checked, the build passed, and
+ * the failure appeared on the pricing page of a live site as
+ * "`customer_creation` can only be used in `payment` mode."
+ *
+ * A wrong combination of valid fields is invisible to TypeScript. Pulling the
+ * object out of the API call is what makes those combinations assertable.
+ */
+export function checkoutParams(
+  account: Account,
+  priceId: string,
+  withReferral: boolean,
+  baseUrl: string,
+): Stripe.Checkout.SessionCreateParams {
+  const root = baseUrl.replace(/\/$/, '');
+
+  return {
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
     client_reference_id: account.id,
+
+    // A known customer is reused so the subscription lands on the same Stripe
+    // record; otherwise Stripe collects the address itself. In subscription
+    // mode a customer is always created, so there is nothing to ask for.
     ...(account.stripe_customer_id
       ? { customer: account.stripe_customer_id }
       : account.email
         ? { customer_email: account.email }
         : {}),
+
+    // The account id travels on the subscription too, so a later
+    // subscription event that carries no session can still be attributed.
     subscription_data: { metadata: { account_id: account.id } },
-    // Stripe collects the email when we have none, and it is the identity the
-    // account is recovered by, so it must reach us.
-    customer_creation: account.stripe_customer_id ? undefined : 'always',
+
     // A referred friend's first month is free. Stripe rejects a session that
     // carries both a discount and the promotion-code box, so it is one or the
     // other - and an automatic discount beats asking someone to find a code.
     ...(withReferral
       ? { discounts: [{ coupon: REFERRAL_COUPON_ID }] }
       : { allow_promotion_codes: true }),
-    success_url: `${appUrl()}/app?welcome=1`,
-    cancel_url: `${appUrl()}/pricing?cancelled=1`,
-  });
+
+    success_url: `${root}/app?welcome=1`,
+    cancel_url: `${root}/pricing?cancelled=1`,
+  };
+}
+
+async function openCheckout(account: Account, priceId: string, withReferral: boolean): Promise<string> {
+  const session = await client().checkout.sessions.create(
+    checkoutParams(account, priceId, withReferral, appUrl()),
+  );
 
   if (!session.url) throw new Error('Stripe created a checkout session with no URL.');
   return session.url;

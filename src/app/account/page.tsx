@@ -7,6 +7,8 @@ import { currentAccount } from '@/lib/auth';
 import { getStore } from '@/lib/db';
 import { PLATFORM_SPECS } from '@/lib/listing/platforms';
 import { quotaFor } from '@/lib/quota';
+import { ReferralCard } from '@/components/referral-card';
+import { referralLink } from '@/lib/referrals';
 
 export const metadata: Metadata = { title: 'Account' };
 export const dynamic = 'force-dynamic';
@@ -39,6 +41,8 @@ export default async function AccountPage() {
   const quota = await quotaFor(account);
   const store = await getStore();
   const recent = await store.recentListings(account.id, 12);
+  const invited = await store.countReferrals(account.id);
+  const appUrl = process.env.APP_URL ?? 'https://pricebird.org';
 
   return (
     <>
@@ -89,6 +93,13 @@ export default async function AccountPage() {
                 )}
             </div>
           </div>
+
+          <ReferralCard
+            link={referralLink(appUrl, account.referral_code)}
+            code={account.referral_code}
+            invited={invited}
+            bonus={account.bonus_listings}
+          />
 
           <div className="stack" style={{ gap: 12 }}>
             <span className="eyebrow">Recent listings</span>

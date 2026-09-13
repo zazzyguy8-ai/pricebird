@@ -33,3 +33,12 @@ create table if not exists login_codes (
   expires_at timestamptz not null,
   attempts   integer not null default 0
 );
+
+-- Referrals. Added after launch, so every column is nullable or defaulted and
+-- this file stays safe to re-run against a database with customers in it.
+alter table accounts add column if not exists referral_code       text unique;
+alter table accounts add column if not exists referred_by         uuid references accounts(id);
+alter table accounts add column if not exists referral_rewarded_at timestamptz;
+alter table accounts add column if not exists bonus_listings      integer not null default 0;
+
+create index if not exists accounts_referred_by_idx on accounts (referred_by);

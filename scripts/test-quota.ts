@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FileStore } from '../src/lib/db';
 import { PLANS, planFromStatus } from '../src/lib/billing/plans';
+import { normalizeReferralCode, generateReferralCode } from '../src/lib/referrals';
 import type { Listing } from '../src/lib/listing/schema';
 
 const LISTING = {
@@ -79,6 +80,43 @@ async function main(): Promise<void> {
   assert.equal(byCustomer?.id, pro.id);
   assert.equal(byCustomer?.plan, 'pro');
   console.log('  ✓ replaying a webhook write is a no-op');
+
+  // ---- referrals -------------------------------------------------------
+  const inviter = await store.createAccount('inviter@example.com');
+  assert.match(inviter.referral_code, /^[A-Z0-9]{6}$/, 'every account needs a code at creation');
+  assert.equal(inviter.bonus_listings, 0);
+
+  const found = await store.findAccountByReferralCode(inviter.referral_code.toLowerCase());
+  assert.equal(found?.id, inviter.id, 'a code typed in lower case must still resolve');
+
+  const invited = await store.createAccount(null, inviter.id);
+  assert.equal(invited.referred_by, inviter.id);
+  assert.equal(await store.countReferrals(inviter.id), 1);
+  assert.equal(await store.countReferrals(invited.id), 0, 'the invited account has invited nobody');
+
+  // Bonus listings raise the ceiling; they do not reset what was used.
+  await store.addBonusListings(inviter.id, 30);
+  const rewarded = await store.getAccount(inviter.id);
+  assert.equal(rewarded?.bonus_listings, 30);
+  assert.equal(
+    PLANS.free.limit + (rewarded?.bonus_listings ?? 0),
+    PLANS.free.limit + 30,
+    'the referral allowance must add to the plan, not replace it',
+  );
+
+  // Rewarded once, and only once - Stripe retries webhooks.
+  assert.equal(invited.referral_rewarded_at, null);
+  await store.markReferralRewarded(invited.id);
+  const paid = await store.getAccount(invited.id);
+  assert.ok(paid?.referral_rewarded_at, 'the payout must be recorded so a retry cannot repeat it');
+
+  // Codes people type: no characters that are read wrong off a screen.
+  for (let i = 0; i < 200; i += 1) {
+    assert.doesNotMatch(generateReferralCode(), /[OIL01]/, 'an ambiguous character got into a code');
+  }
+  assert.equal(normalizeReferralCode('  ab3-k9x '), 'AB3K9X', 'a pasted code must be cleaned up');
+  assert.equal(normalizeReferralCode('xy'), null, 'something too short is not a code');
+  console.log('  ✓ referrals attach once, reward once, and use codes people can type');
 
   await rm(dir, { recursive: true, force: true });
   console.log('all quota tests passed\n');

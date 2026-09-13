@@ -11,6 +11,7 @@
  *   npm run setup:stripe -- --webhook    # also register the webhook endpoint
  */
 import Stripe from 'stripe';
+import { REFERRAL_COUPON_ID } from '../src/lib/referrals';
 
 const MONTHLY_CENTS = 700;
 const YEARLY_CENTS = 6900;
@@ -91,6 +92,23 @@ async function setUpWebhook(stripe: Stripe, appUrl: string): Promise<string | nu
   return created.secret ?? null;
 }
 
+/** The friend's first month, free. Fixed id so this is idempotent and so the
+ *  checkout code can name it without a lookup. */
+async function ensureReferralCoupon(stripe: Stripe): Promise<void> {
+  try {
+    await stripe.coupons.retrieve(REFERRAL_COUPON_ID);
+    console.log(`coupon    ${REFERRAL_COUPON_ID} (existing)`);
+  } catch {
+    await stripe.coupons.create({
+      id: REFERRAL_COUPON_ID,
+      percent_off: 100,
+      duration: 'once',
+      name: 'Referred by a friend - first month free',
+    });
+    console.log(`coupon    ${REFERRAL_COUPON_ID} (created)`);
+  }
+}
+
 async function main(): Promise<void> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
@@ -105,6 +123,7 @@ async function main(): Promise<void> {
   const product = await findOrCreateProduct(stripe);
   const monthly = await findOrCreatePrice(stripe, product, 'monthly', MONTHLY_CENTS, 'month');
   const yearly = await findOrCreatePrice(stripe, product, 'yearly', YEARLY_CENTS, 'year');
+  await ensureReferralCoupon(stripe);
 
   let webhookSecret: string | null = null;
   if (process.argv.includes('--webhook')) {

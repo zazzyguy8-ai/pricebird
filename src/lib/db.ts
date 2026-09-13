@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { Listing } from '@/lib/listing/schema';
 import type { Platform } from '@/lib/listing/platforms';
+import { generateReferralCode } from '@/lib/referrals';
 
 /**
  * Storage, and the one thing it deliberately does not store: the photos.
@@ -26,6 +27,14 @@ export interface Account {
   subscription_status: string | null;
   current_period_end: string | null;
   created_at: string;
+  /** Their own code, handed out. Every account gets one at creation. */
+  referral_code: string;
+  /** The account whose link brought them here, if any. */
+  referred_by: string | null;
+  /** Set once, when their subscription paid out the reward. Never re-fires. */
+  referral_rewarded_at: string | null;
+  /** Free listings earned by referring, on top of the plan's allowance. */
+  bonus_listings: number;
 }
 
 export interface SavedListing {
@@ -53,7 +62,11 @@ export interface BillingUpdate {
 
 export interface Store {
   init(): Promise<void>;
-  createAccount(email?: string | null): Promise<Account>;
+  createAccount(email?: string | null, referredBy?: string | null): Promise<Account>;
+  findAccountByReferralCode(code: string): Promise<Account | null>;
+  countReferrals(accountId: string): Promise<number>;
+  markReferralRewarded(accountId: string): Promise<void>;
+  addBonusListings(accountId: string, listings: number): Promise<void>;
   getAccount(id: string): Promise<Account | null>;
   findAccountByEmail(email: string): Promise<Account | null>;
   findAccountByCustomer(customerId: string): Promise<Account | null>;
@@ -71,7 +84,7 @@ export interface Store {
 const nowIso = () => new Date().toISOString();
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
-function blankAccount(email: string | null): Account {
+function blankAccount(email: string | null, referredBy: string | null): Account {
   return {
     id: randomUUID(),
     email,
@@ -81,6 +94,10 @@ function blankAccount(email: string | null): Account {
     subscription_status: null,
     current_period_end: null,
     created_at: nowIso(),
+    referral_code: generateReferralCode(),
+    referred_by: referredBy,
+    referral_rewarded_at: null,
+    bonus_listings: 0,
   };
 }
 
@@ -115,11 +132,31 @@ export class FileStore implements Store {
     await writeFile(this.path, JSON.stringify(this.data, null, 2));
   }
 
-  async createAccount(email: string | null = null): Promise<Account> {
-    const account = blankAccount(email ? normalizeEmail(email) : null);
+  async createAccount(email: string | null = null, referredBy: string | null = null): Promise<Account> {
+    const account = blankAccount(email ? normalizeEmail(email) : null, referredBy);
     this.data.accounts.push(account);
     await this.flush();
     return account;
+  }
+
+  async findAccountByReferralCode(code: string): Promise<Account | null> {
+    return this.data.accounts.find((a) => a.referral_code === code.toUpperCase()) ?? null;
+  }
+
+  async countReferrals(accountId: string): Promise<number> {
+    return this.data.accounts.filter((a) => a.referred_by === accountId).length;
+  }
+
+  async markReferralRewarded(accountId: string): Promise<void> {
+    const account = this.data.accounts.find((a) => a.id === accountId);
+    if (account) account.referral_rewarded_at = nowIso();
+    await this.flush();
+  }
+
+  async addBonusListings(accountId: string, listings: number): Promise<void> {
+    const account = this.data.accounts.find((a) => a.id === accountId);
+    if (account) account.bonus_listings += listings;
+    await this.flush();
   }
 
   async getAccount(id: string): Promise<Account | null> {
@@ -246,14 +283,40 @@ export class PgStore implements Store {
     await this.query('select 1');
   }
 
-  async createAccount(email: string | null = null): Promise<Account> {
+  async createAccount(email: string | null = null, referredBy: string | null = null): Promise<Account> {
+    // The code is generated here rather than defaulted in SQL so the same
+    // alphabet rule holds whichever store is running.
     const [row] = await this.query<Account>(
-      `insert into accounts (id, email) values ($1, $2)
-       returning id, email, plan, stripe_customer_id, stripe_subscription_id,
-                 subscription_status, current_period_end, created_at`,
-      [randomUUID(), email ? normalizeEmail(email) : null],
+      `insert into accounts (id, email, referral_code, referred_by)
+       values ($1, $2, $3, $4) returning *`,
+      [randomUUID(), email ? normalizeEmail(email) : null, generateReferralCode(), referredBy],
     );
     return row;
+  }
+
+  async findAccountByReferralCode(code: string): Promise<Account | null> {
+    const [row] = await this.query<Account>(
+      'select * from accounts where referral_code = $1', [code.toUpperCase()],
+    );
+    return row ?? null;
+  }
+
+  async countReferrals(accountId: string): Promise<number> {
+    const [row] = await this.query<{ count: string }>(
+      'select count(*)::text as count from accounts where referred_by = $1', [accountId],
+    );
+    return Number(row?.count ?? 0);
+  }
+
+  async markReferralRewarded(accountId: string): Promise<void> {
+    await this.query('update accounts set referral_rewarded_at = now() where id = $1', [accountId]);
+  }
+
+  async addBonusListings(accountId: string, listings: number): Promise<void> {
+    await this.query(
+      'update accounts set bonus_listings = bonus_listings + $2 where id = $1',
+      [accountId, listings],
+    );
   }
 
   async getAccount(id: string): Promise<Account | null> {

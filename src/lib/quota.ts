@@ -29,19 +29,22 @@ export async function quotaFor(account: Account): Promise<Quota> {
   const spec = PLANS[account.plan];
   const store = await getStore();
   const used = await store.countListings(account.id, spec.window === 'month' ? monthStart() : undefined);
-  const remaining = Math.max(0, spec.limit - used);
+  // Referral rewards raise the ceiling rather than resetting the count, so a
+  // free user who brought two friends simply has a bigger allowance.
+  const limit = spec.limit + account.bonus_listings;
+  const remaining = Math.max(0, limit - used);
 
   return {
     plan: account.plan,
     used,
-    limit: spec.limit,
+    limit,
     remaining,
     window: spec.window,
     allowed: remaining > 0,
     message: remaining > 0
       ? ''
       : account.plan === 'free'
-        ? `You have used all ${spec.limit} free listings. Pro is ${PLANS.pro.priceLabel} and lifts the cap.`
+        ? `You have used all ${limit} free listings. Pro is ${PLANS.pro.priceLabel} and lifts the cap.`
         : `You have hit ${spec.limit} listings this month, which is the fair-use cap. Reply to your receipt and we will raise it.`,
   };
 }

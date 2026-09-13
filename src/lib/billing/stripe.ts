@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { getStore, type Account } from '@/lib/db';
 import { PRICE_ENV, planFromStatus, type Interval } from './plans';
+import { REFERRAL_COUPON_ID, REWARD_BONUS_LISTINGS, REWARD_CREDIT_CENTS } from '@/lib/referrals';
 
 /**
  * Stripe, and the rule that a plan is only ever written from a verified
@@ -78,7 +79,12 @@ export async function createCheckout(account: Account, interval: Interval): Prom
     // Stripe collects the email when we have none, and it is the identity the
     // account is recovered by, so it must reach us.
     customer_creation: account.stripe_customer_id ? undefined : 'always',
-    allow_promotion_codes: true,
+    // A referred friend's first month is free. Stripe rejects a session that
+    // carries both a discount and the promotion-code box, so it is one or the
+    // other - and an automatic discount beats asking someone to find a code.
+    ...(account.referred_by && !account.referral_rewarded_at
+      ? { discounts: [{ coupon: REFERRAL_COUPON_ID }] }
+      : { allow_promotion_codes: true }),
     success_url: `${appUrl()}/app?welcome=1`,
     cancel_url: `${appUrl()}/pricing?cancelled=1`,
   });
@@ -127,7 +133,63 @@ async function applySubscription(subscription: Stripe.Subscription): Promise<str
     subscription_status: subscription.status,
     current_period_end: periodEnd(subscription),
   });
-  return `account ${account.id} -> ${plan} (${subscription.status})`;
+
+  const reward = plan === 'pro' ? await payReferrer(account.id) : null;
+  return `account ${account.id} -> ${plan} (${subscription.status})${reward ? `; ${reward}` : ''}`;
+}
+
+/**
+ * Pays the person whose link brought this subscriber.
+ *
+ * Only ever on a subscription that reached `pro`, and only once - the reward
+ * is for a paying customer, not for a signup, because a signup reward is a
+ * spam reward and this will be shared in reseller groups.
+ *
+ * A paying referrer gets money off their next invoice through Stripe's own
+ * customer balance, which needs no coupon and survives a plan change. A
+ * referrer who has never paid gets listings, because a credit against an
+ * invoice they do not have is nothing at all.
+ */
+async function payReferrer(subscriberId: string): Promise<string | null> {
+  const store = await getStore();
+  const subscriber = await store.getAccount(subscriberId);
+  if (!subscriber?.referred_by || subscriber.referral_rewarded_at) return null;
+
+  // Self-referral: the cookie can be set from your own link in your own
+  // browser, and the account merge on sign-in can make that look legitimate.
+  if (subscriber.referred_by === subscriber.id) {
+    await store.markReferralRewarded(subscriber.id);
+    return 'self-referral ignored';
+  }
+
+  const referrer = await store.getAccount(subscriber.referred_by);
+  if (!referrer) {
+    await store.markReferralRewarded(subscriber.id);
+    return 'referrer no longer exists';
+  }
+
+  // Marked before the payout, not after: Stripe retries webhooks, and paying
+  // the same referrer twice for one friend is the failure that costs money.
+  await store.markReferralRewarded(subscriber.id);
+
+  if (referrer.stripe_customer_id) {
+    try {
+      await client().customers.createBalanceTransaction(referrer.stripe_customer_id, {
+        amount: -REWARD_CREDIT_CENTS,
+        currency: 'usd',
+        description: `Referral reward - ${subscriber.email ?? subscriber.id} subscribed`,
+      });
+      return `credited referrer ${referrer.id}`;
+    } catch (error) {
+      // Never fail the webhook over a reward: the subscription itself is
+      // already recorded, and a lost credit is a support email, not a
+      // customer who paid and got nothing.
+      return `referrer credit failed: ${error instanceof Error ? error.message : 'unknown'}`;
+    }
+  }
+
+  await store.addBonusListings(referrer.id, REWARD_BONUS_LISTINGS);
+  return `gave referrer ${referrer.id} ${REWARD_BONUS_LISTINGS} listings`;
 }
 
 /**

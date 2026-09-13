@@ -1,6 +1,7 @@
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { getStore, type Account } from '@/lib/db';
+import { REFERRAL_COOKIE } from '@/lib/referrals';
 
 /**
  * Who is asking, without a password and without a signup wall.
@@ -87,7 +88,15 @@ export async function accountForRequest(): Promise<{ account: Account; setCookie
   if (existing) return { account: existing, setCookie: null };
 
   const store = await getStore();
-  const account = await store.createAccount();
+
+  // The referral is attached at creation and never afterwards: an account
+  // that already exists was not brought here by that link, and letting a code
+  // apply later would make every existing user referrable by anyone.
+  const jar = await cookies();
+  const code = jar.get(REFERRAL_COOKIE)?.value;
+  const referrer = code ? await store.findAccountByReferralCode(code) : null;
+
+  const account = await store.createAccount(null, referrer?.id ?? null);
   return { account, setCookie: issueSession(account.id) };
 }
 

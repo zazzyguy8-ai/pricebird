@@ -158,6 +158,21 @@ export async function claimEmail(currentId: string, email: string): Promise<Acco
   //
   // Their usage moves with them, which is the honest direction: the listings
   // were made and they count against the allowance.
+  const current = await store.getAccount(currentId);
+
+  // Never absorb an account that has a billing relationship. Somebody can pay
+  // on this browser and later sign in with an address belonging to an older
+  // account - deleting the paying row would orphan a live Stripe subscription
+  // and leave a customer who paid on the free plan. Two rows and a log line is
+  // a support email; a deleted subscription is a refund and a lost customer.
+  if (current?.stripe_customer_id || current?.plan === 'pro') {
+    console.warn(
+      `[auth] ${currentId} carries billing and was not merged into ${owner.id} - `
+      + 'both accounts kept, merge by hand if the customer asks.',
+    );
+    return owner;
+  }
+
   const moved = await store.absorbAccount(currentId, owner.id);
   if (moved > 0) console.info(`[auth] merged ${moved} listings into ${owner.id}`);
   // Re-read so the caller sees the absorbed bonus, not the pre-merge row.

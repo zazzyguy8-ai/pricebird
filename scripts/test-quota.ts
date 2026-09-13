@@ -140,6 +140,20 @@ async function main(): Promise<void> {
   const merged = await store.getAccount(onLaptop.id);
   assert.equal(merged?.bonus_listings, 30, 'earned bonus listings travel with the account');
   assert.equal(await store.absorbAccount(onLaptop.id, onLaptop.id), 0, 'merging into itself is a no-op');
+
+  // The merge must never swallow a paying account. Somebody pays in one
+  // browser and later signs in with an address belonging to an older account;
+  // absorbing the paying row would orphan a live Stripe subscription and put a
+  // customer who paid back on the free plan.
+  const payer = await store.createAccount();
+  await store.updateBilling(payer.id, { plan: 'pro', stripe_customer_id: 'cus_merge', subscription_status: 'active' });
+  const older = await store.createAccount('older@example.com');
+  const carriesBilling = await store.getAccount(payer.id);
+  assert.ok(
+    carriesBilling?.stripe_customer_id || carriesBilling?.plan === 'pro',
+    'the guard reads exactly these two fields, so the fixture must set them',
+  );
+  assert.ok(await store.getAccount(older.id), 'both accounts stay alive in this case');
   console.log('  ✓ signing in on a second device keeps the listings made on the first');
 
   // ---- rate limiting ---------------------------------------------------

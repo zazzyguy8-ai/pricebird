@@ -48,6 +48,7 @@ const GOOD_LISTING: Listing = {
   },
   ask_the_seller: ['Pit to pit measurement'],
   photo_tips: ['Shoot the label flat'],
+  diagnosis: [],
 };
 
 /** Builds a fake API response containing a forced tool call. */
@@ -406,6 +407,89 @@ function theProfileNeverBreaksAListing(): void {
   console.log('  ✓ a broken profile costs nothing, and promises are never paraphrased');
 }
 
+/**
+ * Relist mode, whose whole value depends on one restraint.
+ *
+ * A seller pasting a listing with no photo is handing over the only facts
+ * that exist. Everything they wrote is true - they own the item - and
+ * anything they left out is not ours to supply. A rewrite that quietly adds
+ * "100% cotton" because the item looks like cotton produces a return, and the
+ * seller will never know which of their four hundred rewrites did it.
+ */
+async function relistAsksRatherThanInvents(): Promise<void> {
+  let seen: Record<string, unknown> | null = null;
+
+  const existing = {
+    title: 'Nice jacket',
+    description: 'Good condition, worn a few times. Any questions just ask!',
+  };
+
+  await generateListing(
+    { photos: [], platforms: ['ebay'], currency: 'GBP', existing },
+    {
+      apiKey: 'sk-ant-test',
+      fetch: async (_url, init) => {
+        seen = JSON.parse(String((init as RequestInit).body));
+        return stubResponse(toolMessage(GOOD_LISTING));
+      },
+    },
+  );
+
+  assert.ok(seen, 'the transport was never called');
+  const request = seen as Record<string, any>;
+  const content = request.messages[0].content as Array<Record<string, any>>;
+
+  assert.ok(!content.some((block) => block.type === 'image'), 'no photo was sent, so none may appear');
+
+  const textBlock = content.find((block) => block.type === 'text');
+  assert.ok(textBlock, 'no prompt block reached the API');
+  const text = textBlock.text as string;
+  assert.match(text, /Nice jacket/, "the seller's title never reached the model");
+  assert.match(text, /Any questions just ask/, "the seller's description never reached the model");
+  assert.match(text, /There are no photos/, 'the model was not told it is working from text alone');
+  assert.match(text, /add a fact nobody stated/, 'the restraint that makes this safe was not stated');
+  assert.match(text, /diagnosis first/, 'the diagnosis must drive the rewrite, not decorate it');
+  assert.match(text, /80 characters/, 'the eBay limit still has to reach the model');
+
+  // Photos are a check on the words when they exist, never a contradiction.
+  const withPhoto: Record<string, any>[] = [];
+  await generateListing(
+    { photos: [PHOTO], platforms: ['vinted'], currency: 'EUR', existing },
+    {
+      apiKey: 'sk-ant-test',
+      fetch: async (_url, init) => {
+        withPhoto.push(...JSON.parse(String((init as RequestInit).body)).messages[0].content);
+        return stubResponse(toolMessage(GOOD_LISTING));
+      },
+    },
+  );
+  assert.ok(withPhoto.some((block) => block.type === 'image'), 'a photo sent with a relist must be used');
+  const mixedBlock = withPhoto.find((block) => block.type === 'text');
+  assert.ok(mixedBlock, 'no prompt block reached the API');
+  const mixed = mixedBlock.text as string;
+  assert.match(mixed, /is 1 photo/, 'the model must be told how many photos it has');
+  assert.match(mixed, /never to contradict a fact only they can know/, 'the seller still owns the item');
+
+  // Without either input there is nothing to work from, and that is a clear
+  // refusal rather than a request sent off to be charged for.
+  await assert.rejects(
+    generateListing({ photos: [], platforms: ['ebay'], currency: 'GBP' }, { apiKey: 'sk-ant-test' }),
+    /No photo was uploaded/,
+  );
+
+  console.log('  ✓ a rewrite works from what the seller wrote and adds nothing they did not');
+}
+
+function diagnosisIsOptionalEverywhereElse(): void {
+  // Listings saved before relist existed, and every listing written from a
+  // photo, have no diagnosis. Neither may fail to parse.
+  const { diagnosis: _omitted, ...withoutDiagnosis } = GOOD_LISTING;
+  const parsed = ListingSchema.parse(withoutDiagnosis);
+  assert.deepEqual(parsed.diagnosis, [], 'a missing diagnosis must default, not throw');
+
+  console.log('  ✓ a listing with no diagnosis still parses');
+}
+
 async function main(): Promise<void> {
   console.log('listing');
   await wiring();
@@ -419,6 +503,8 @@ async function main(): Promise<void> {
   csvSurvivesRealContent();
   theHouseStyleSurvivesEveryLimit();
   theProfileNeverBreaksAListing();
+  await relistAsksRatherThanInvents();
+  diagnosisIsOptionalEverywhereElse();
   console.log('all listing tests passed\n');
 }
 

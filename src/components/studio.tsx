@@ -17,7 +17,7 @@ import type { Quota } from '@/lib/quota';
  * its own character count - a title that copies clean is the product.
  */
 
-const CURRENCIES = ['USD', 'GBP', 'EUR', 'CAD', 'AUD', 'PLN', 'CZK', 'SEK'];
+export const CURRENCIES = ['USD', 'GBP', 'EUR', 'CAD', 'AUD', 'PLN', 'CZK', 'SEK'];
 
 /** Longest edge after downscaling. Detail beyond this changes nothing the
  *  model can use and costs upload seconds on a phone connection. */
@@ -265,7 +265,7 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
   );
 }
 
-function QuotaBar({ quota, signedIn }: { quota: Quota; signedIn: boolean }) {
+export function QuotaBar({ quota, signedIn }: { quota: Quota; signedIn: boolean }) {
   const pct = Math.min(100, Math.round((quota.used / quota.limit) * 100));
   return (
     <div className="card card-tight stack" style={{ gap: 8 }}>
@@ -313,7 +313,7 @@ function Pending() {
   );
 }
 
-function Copy({ text, label = 'Copy' }: { text: string; label?: string }) {
+export function Copy({ text, label = 'Copy' }: { text: string; label?: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
@@ -334,7 +334,7 @@ function Copy({ text, label = 'Copy' }: { text: string; label?: string }) {
   );
 }
 
-function Field({ label, value, hint }: { label: string; value: string; hint?: string }) {
+export function Field({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="out-field">
       <div className="out-head">
@@ -346,7 +346,7 @@ function Field({ label, value, hint }: { label: string; value: string; hint?: st
   );
 }
 
-function Result({ listing, platforms, profile, active, onSelect }: {
+export function Result({ listing, platforms, profile, active, onSelect }: {
   listing: Listing;
   platforms: Platform[];
   profile: SellerProfile;

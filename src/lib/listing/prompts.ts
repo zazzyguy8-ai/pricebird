@@ -129,3 +129,88 @@ photo_tips is at most three concrete fixes for the photos you were given - the
 missing shot, the light, the background. Skip it if the photos are fine.
 ${input.profile ? `\n${profileRules(input.profile)}` : ''}`;
 }
+
+/**
+ * Rewriting a listing that is already live and not selling.
+ *
+ * A different job from writing one. The item is not in question - the seller
+ * owns it and described it - so the photos, if there are any, are a check on
+ * the words rather than the source of them. What is in question is why nobody
+ * is buying, and that is nearly always one of a small number of concrete,
+ * fixable things: a title that wastes its characters, a condition nobody
+ * stated, measurements nobody gave, a price set by hope.
+ *
+ * The diagnosis is the point. A rewritten listing without it is a black box
+ * the seller has to trust; with it, they learn the rule and write the next
+ * four hundred better themselves. That is worth more to them than the rewrite
+ * and it is the reason they stay subscribed.
+ */
+export function relistPrompt(input: {
+  platforms: Platform[];
+  currency: string;
+  notes: string | null;
+  photoCount: number;
+  profile?: SellerProfile;
+  existing: { title: string; description: string };
+}): string {
+  const platformLines = input.platforms
+    .map((p) => {
+      const spec = PLATFORM_SPECS[p];
+      return `- ${spec.label} (${p}): title max ${spec.titleMax} characters. ${spec.voice}`
+        + (spec.hashtags > 0 ? ` Up to ${spec.hashtags} hashtags.` : ' No hashtags.');
+    })
+    .join('\n');
+
+  return `This listing is already live and it is not selling. Rewrite it.
+
+The seller's current title:
+"""
+${input.existing.title}
+"""
+
+The seller's current description:
+"""
+${input.existing.description}
+"""
+
+${input.photoCount > 0
+    ? `There ${input.photoCount === 1 ? 'is 1 photo' : `are ${input.photoCount} photos`} of the item. Use them to check the seller's own words and to add what they left out - never to contradict a fact only they can know, such as what they paid or how long they have had it.`
+    : 'There are no photos. Everything the seller wrote about the item is true - they own it and you do not - so do not drop a fact because you cannot see it. What you may not do is add a fact nobody stated: if the description never mentions the material, the rewrite does not either. Put it in ask_the_seller instead.'}
+
+Fill in diagnosis first, and let it drive the rewrite. Two to four entries,
+each naming one concrete fault in the listing above and what it costs. Be
+specific and quantitative where you can - "the title uses 41 of the 80
+characters eBay gives you, so brand, size and colour never reach the search
+index" is useful; "the title could be better" is not.
+
+The faults worth looking for, roughly in order of how much they cost:
+
+- Search terms missing from the title, or the title so long the platform
+  cuts it mid-word.
+- No condition stated, or a vague one. "Good condition" tells a buyer
+  nothing and gets the dispute that a named flaw prevents.
+- No measurements, on anything where fit decides the purchase.
+- The motif or pattern unnamed, so nobody searching for it finds it.
+- Filler where facts should be: an opening greeting, "perfect for any
+  occasion", a closing line asking for questions.
+- A price with no relationship to the condition described.
+
+Never invent a fault to reach a number. If the listing is genuinely good and
+the only problem is the price, say exactly that and leave it at one entry.
+
+Then produce the full rewrite - titles for each of these marketplaces,
+respecting its limit and voice:
+${platformLines}
+
+Write it in ${input.currency}. Two descriptions, SHORT (under 400 characters,
+for Vinted, Depop, Facebook, Poshmark and Mercari) and LONG (under 900, for
+eBay and Etsy, where the description is also what the site searches).
+
+The price range is your own estimate for the item as described, not a defence
+of the seller's current price. If their price is the problem, the range is how
+they find that out.
+${input.notes ? `\nThe seller added: "${input.notes}"\nTreat this as fact about the item.` : ''}
+
+photo_tips only if there are photos and they are part of the problem.
+${input.profile ? `\n${profileRules(input.profile)}` : ''}`;
+}

@@ -17,10 +17,19 @@ const BodySchema = z.object({
   photos: z.array(z.object({
     media_type: z.enum(ACCEPTED_IMAGE_TYPES),
     data: z.string().min(100),
-  })).min(1).max(MAX_IMAGES),
+  })).max(MAX_IMAGES).default([]),
   platforms: z.array(z.enum(PLATFORMS)).min(1),
   currency: z.string().length(3).default('USD'),
   notes: z.string().max(500).nullable().optional(),
+  /** Relist mode: the listing already live and not selling. */
+  existing: z.object({
+    title: z.string().trim().min(3).max(200),
+    description: z.string().trim().min(20).max(6000),
+  }).nullable().optional(),
+// One of the two has to be there. Enforced here rather than in the
+// generator so the caller gets a 400 with a sentence, not a 502 with one.
+}).refine((body) => body.photos.length > 0 || body.existing, {
+  message: 'Send either photos or an existing listing to rewrite.',
 });
 
 export async function POST(request: Request) {
@@ -71,7 +80,10 @@ export async function POST(request: Request) {
   try {
     body = BodySchema.parse(await request.json());
   } catch {
-    return NextResponse.json({ error: 'That request was not a photo set this can read.' }, { status: 400 });
+    return NextResponse.json(
+      { error: 'That request was neither a photo set nor a listing this can read.' },
+      { status: 400 },
+    );
   }
 
   // The house style rides on every request without the seller re-typing it.
@@ -88,6 +100,7 @@ export async function POST(request: Request) {
       currency: body.currency.toUpperCase(),
       notes: body.notes ?? null,
       profile,
+      existing: body.existing ?? null,
     });
   } catch (error) {
     if (error instanceof ListingFailure) {

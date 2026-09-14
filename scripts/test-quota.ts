@@ -23,7 +23,7 @@ const LISTING = {
   title: 'A thing', description: { short: 'x'.repeat(60), long: 'x'.repeat(120) }, bullets: ['a', 'b'],
   keywords: ['a', 'b', 'c'], platforms: [{ platform: 'ebay', title: 'A thing', hashtags: [] }],
   price: { currency: 'USD', low: 1, suggested: 2, high: 3, basis: 'a typical band', confidence: 'low' },
-  ask_the_seller: [], photo_tips: [],
+  ask_the_seller: [], photo_tips: [], diagnosis: [],
 } as Listing;
 
 async function main(): Promise<void> {

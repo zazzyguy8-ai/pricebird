@@ -85,6 +85,14 @@ export const ListingSchema = z.object({
   price: PriceSchema,
   ask_the_seller: z.array(z.string()).max(5),
   photo_tips: z.array(z.string()).max(3),
+  /**
+   * Why the listing being replaced was not selling.
+   *
+   * Only ever filled in by relist mode, and defaulted rather than required so
+   * that a photo listing - which has nothing to diagnose - is not made to
+   * invent one, and so an older saved listing still parses.
+   */
+  diagnosis: z.array(z.string()).max(5).default([]),
 });
 
 export type Item = z.infer<typeof ItemSchema>;

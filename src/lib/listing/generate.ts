@@ -4,7 +4,7 @@ import { requireModel, supportsEffort } from '@/lib/models';
 import { redact, readSecret } from '@/lib/secrets';
 import { PLATFORMS, type Platform } from './platforms';
 import { ListingSchema, type Listing } from './schema';
-import { LISTING_SYSTEM, listingPrompt } from './prompts';
+import { LISTING_SYSTEM, listingPrompt, relistPrompt } from './prompts';
 import type { SellerProfile } from './profile';
 
 /** Formats Claude accepts as image input. Anything else is rejected at the
@@ -30,6 +30,14 @@ export interface GenerateInput {
   notes?: string | null;
   /** The seller's house style. Absent for anonymous first-time use. */
   profile?: SellerProfile;
+  /**
+   * A listing that already exists and is not selling.
+   *
+   * When present the photos become optional: the text is the subject, and a
+   * seller with four hundred stale listings has the words to hand long before
+   * they have the item back out of the box to photograph.
+   */
+  existing?: { title: string; description: string } | null;
 }
 
 /**
@@ -134,6 +142,14 @@ const LISTING_TOOL: Anthropic.Tool = {
       },
       ask_the_seller: { type: 'array', maxItems: 5, items: { type: 'string' } },
       photo_tips: { type: 'array', maxItems: 3, items: { type: 'string' } },
+      diagnosis: {
+        type: 'array',
+        maxItems: 5,
+        items: { type: 'string' },
+        description:
+          'Relist mode only. What was actually wrong with the listing being replaced, each item '
+          + 'naming the fault and what it cost. Leave empty when rewriting from photos.',
+      },
     },
   },
 };
@@ -225,7 +241,7 @@ export interface GenerateOptions {
 }
 
 function validate(input: GenerateInput): void {
-  if (input.photos.length === 0) throw new Error('No photo was uploaded.');
+  if (input.photos.length === 0 && !input.existing) throw new Error('No photo was uploaded.');
   if (input.photos.length > MAX_IMAGES) {
     throw new Error(`${input.photos.length} photos is more than the ${MAX_IMAGES} this reads at once.`);
   }
@@ -311,13 +327,22 @@ export async function generateListing(input: GenerateInput, options: GenerateOpt
     })),
     {
       type: 'text',
-      text: listingPrompt({
-        platforms: input.platforms,
-        currency: input.currency,
-        notes: input.notes?.trim() || null,
-        photoCount: input.photos.length,
-        profile: input.profile,
-      }),
+      text: input.existing
+        ? relistPrompt({
+          platforms: input.platforms,
+          currency: input.currency,
+          notes: input.notes?.trim() || null,
+          photoCount: input.photos.length,
+          profile: input.profile,
+          existing: input.existing,
+        })
+        : listingPrompt({
+          platforms: input.platforms,
+          currency: input.currency,
+          notes: input.notes?.trim() || null,
+          photoCount: input.photos.length,
+          profile: input.profile,
+        }),
     },
   ];
 

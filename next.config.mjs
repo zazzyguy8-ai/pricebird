@@ -59,6 +59,7 @@ const nextConfig = {
       ...Object.entries({
         '/app': ['/start', '/studio', '/new', '/listing', '/dashboard', '/home'],
         '/bulk': ['/batch', '/csv', '/bulk-upload'],
+        '/relist': ['/rewrite', '/fix', '/refresh', '/improve'],
         '/pricing': ['/price', '/prices', '/plans', '/plan', '/upgrade', '/pro'],
         '/signin': ['/login', '/log-in', '/sign-in', '/signup', '/sign-up', '/register'],
         '/account': ['/billing', '/settings', '/profile'],

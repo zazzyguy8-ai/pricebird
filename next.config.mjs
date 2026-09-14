@@ -50,6 +50,22 @@ const nextConfig = {
         destination: 'https://:apex/:path*',
         permanent: true,
       },
+      // The names people actually type. Every one of these is a guess a
+      // reasonable person makes about where something lives, and a 404 is a
+      // bad answer to a reasonable guess - especially on the one domain every
+      // link we post points at. Temporary, not permanent: these are courtesies
+      // to the person typing, not statements about where a page lives, and a
+      // browser that cached them forever would outlive any rename.
+      ...Object.entries({
+        '/app': ['/start', '/studio', '/new', '/listing', '/dashboard', '/home'],
+        '/bulk': ['/batch', '/csv', '/bulk-upload'],
+        '/pricing': ['/price', '/prices', '/plans', '/plan', '/upgrade', '/pro'],
+        '/signin': ['/login', '/log-in', '/sign-in', '/signup', '/sign-up', '/register'],
+        '/account': ['/billing', '/settings', '/profile'],
+        '/api/health': ['/health', '/status'],
+      }).flatMap(([destination, sources]) =>
+        sources.map((source) => ({ source, destination, permanent: false })),
+      ),
     ];
   },
 };

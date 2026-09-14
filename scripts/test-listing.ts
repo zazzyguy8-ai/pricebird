@@ -490,6 +490,52 @@ function diagnosisIsOptionalEverywhereElse(): void {
   console.log('  ✓ a listing with no diagnosis still parses');
 }
 
+/**
+ * The cache breakpoint, asserted.
+ *
+ * A breakpoint that silently stops matching costs about a quarter of the
+ * inference bill and reports nothing at all - no error, no warning, just a
+ * larger invoice at the end of the month. The shape is cheap to check here
+ * and impossible to notice in production.
+ */
+async function theExpensiveHalfOfEveryRequestIsCached(): Promise<void> {
+  let seen: Record<string, any> | null = null;
+  await generateListing(
+    { photos: [PHOTO], platforms: ['ebay'], currency: 'GBP' },
+    {
+      apiKey: 'sk-ant-test',
+      fetch: async (_url, init) => {
+        seen = JSON.parse(String((init as RequestInit).body));
+        return stubResponse(toolMessage(GOOD_LISTING));
+      },
+    },
+  );
+
+  assert.ok(seen, 'the transport was never called');
+  const request = seen as Record<string, any>;
+
+  // System must be a block array, not a bare string - a string cannot carry
+  // a breakpoint, and swapping it back is a silent 25% price rise.
+  assert.ok(Array.isArray(request.system), 'the system prompt must be a block array to be cacheable');
+  assert.equal(request.system[0].cache_control?.type, 'ephemeral', 'the breakpoint is missing');
+
+  // Tools render before system, so one breakpoint covers both. Together they
+  // must clear Sonnet 5's 1024-token minimum or the marker does nothing.
+  const prefix = JSON.stringify(request.tools).length + String(request.system[0].text).length;
+  assert.ok(
+    prefix / 3.6 > 1200,
+    `the cached prefix is only ~${Math.round(prefix / 3.6)} tokens - too close to the 1024 minimum to rely on`,
+  );
+
+  // And the photo must stay AFTER the breakpoint: it is different every
+  // request, and anything after the last breakpoint is not cached anyway.
+  const content = request.messages[0].content as Array<Record<string, any>>;
+  assert.ok(content.some((b) => b.type === 'image'), 'the photo must still be sent');
+  assert.ok(!content.some((b) => b.cache_control), 'nothing per-request may carry a breakpoint');
+
+  console.log('  ✓ the tool schema and system prompt are cached, the photo is not');
+}
+
 async function main(): Promise<void> {
   console.log('listing');
   await wiring();
@@ -505,6 +551,7 @@ async function main(): Promise<void> {
   theProfileNeverBreaksAListing();
   await relistAsksRatherThanInvents();
   diagnosisIsOptionalEverywhereElse();
+  await theExpensiveHalfOfEveryRequestIsCached();
   console.log('all listing tests passed\n');
 }
 

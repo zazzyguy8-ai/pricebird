@@ -155,6 +155,40 @@ const LISTING_TOOL: Anthropic.Tool = {
 };
 
 /**
+ * Per-million-token prices, for the models this app is allowed to use.
+ *
+ * Duplicated from the price list rather than fetched, because this is a log
+ * line and a wrong log line must never be able to fail a paid request.
+ */
+const PRICES: Record<string, { input: number; output: number }> = {
+  'claude-opus-5': { input: 5, output: 25 },
+  'claude-sonnet-5': { input: 2, output: 10 },
+  'claude-haiku-4-5': { input: 1, output: 5 },
+};
+
+function logCost(model: string, usage: Anthropic.Usage): void {
+  const price = PRICES[model];
+  if (!price) return;
+
+  const fresh = usage.input_tokens ?? 0;
+  const written = usage.cache_creation_input_tokens ?? 0;
+  const read = usage.cache_read_input_tokens ?? 0;
+  const out = usage.output_tokens ?? 0;
+
+  // Cache writes cost 1.25x base input, reads 0.1x.
+  const cents = 100 * (
+    ((fresh + written * 1.25 + read * 0.1) * price.input) / 1_000_000
+    + (out * price.output) / 1_000_000
+  );
+
+  const cacheState = written > 0 ? 'written' : read > 0 ? 'hit' : 'MISS';
+  console.info(
+    `[listing] ${cents.toFixed(2)}c on ${model} - in ${fresh}, cache ${cacheState} `
+    + `(w${written}/r${read}), out ${out}`,
+  );
+}
+
+/**
  * A failure with two audiences.
  *
  * The seller gets `message` - one sentence, no vocabulary they did not ask
@@ -354,7 +388,20 @@ export async function generateListing(input: GenerateInput, options: GenerateOpt
       // Perception plus short copy: extra deliberation buys nothing here and
       // every added second is felt, because the user is watching a spinner.
       ...(supportsEffort(model) ? ({ output_config: { effort: 'low' } } as unknown as Record<string, unknown>) : {}),
-      system: LISTING_SYSTEM,
+      // Cached, because the expensive half of every request is identical.
+      //
+      // The tool schema and the system prompt are the same ~2,700 tokens on
+      // the first listing of the day and the four-hundredth, and they render
+      // before anything that varies - so one breakpoint here covers both. A
+      // cache read costs a tenth of fresh input, which takes roughly a
+      // quarter off the bill for a request whose only new tokens are one
+      // photo and a short instruction.
+      //
+      // Breaking even needs two requests inside the five-minute window,
+      // which is exactly the traffic shape this product has: nobody lists
+      // one item. The write costs 1.25x on a genuinely solitary request, and
+      // that is the trade.
+      system: [{ type: 'text', text: LISTING_SYSTEM, cache_control: { type: 'ephemeral' } }],
       tools: [LISTING_TOOL],
       tool_choice: { type: 'tool', name: 'submit_listing' },
       messages: [{ role: 'user', content }],
@@ -365,6 +412,16 @@ export async function generateListing(input: GenerateInput, options: GenerateOpt
     // messages already speak to the seller.
     throw translate(error);
   }
+
+  // What that listing actually cost, in the log.
+  //
+  // Not vanity: at roughly two cents of inference against a seven dollar
+  // price, the free tier is the largest single expense this product has, and
+  // it is spent on people who have not paid. Guessing at it is how a launch
+  // turns into a surprise invoice. The cache figures are here too, because a
+  // breakpoint that silently stops matching costs a quarter of the bill and
+  // reports nothing.
+  logCost(model, message.usage);
 
   return parse(toolResult(message));
 }

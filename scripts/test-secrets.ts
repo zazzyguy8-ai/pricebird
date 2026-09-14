@@ -225,6 +225,26 @@ async function healthTellsTheTruthAboutEmail(): Promise<void> {
     assert.ok(!verdict.detail.includes(FAKE.RESEND_API_KEY.slice(0, 10)), `${name}: health quoted the key`);
   }
 
+
+  // The shared test sender deserves its own case: every signal Resend gives
+  // is healthy - valid key, successful request - and a customer still never
+  // receives a code, because it only delivers to the account's own address.
+  forgetMailVerdict();
+  const shared = await withEnv(
+    { RESEND_API_KEY: FAKE.RESEND_API_KEY, MAIL_FROM: 'Pricebird <onboarding@resend.dev>' },
+    () => withResend({ status: 200, body: domains('verified') }, () => verifyMail(500)),
+  );
+  assert.equal(shared.ok, false, 'the shared test sender must not report green');
+  assert.match(shared.detail, /only delivers to your own Resend account/);
+
+  // A display name around the address must not confuse the domain check.
+  forgetMailVerdict();
+  const named = await withEnv(
+    { RESEND_API_KEY: FAKE.RESEND_API_KEY, MAIL_FROM: 'Pricebird <hello@pricebird.org>' },
+    () => withResend({ status: 200, body: domains('verified') }, () => verifyMail(500)),
+  );
+  assert.equal(named.ok, true, `a display name broke the domain check: ${named.detail}`);
+
   // Resend being unreachable is not a misconfiguration, and it must not be
   // remembered either - the next look has to ask again.
   forgetMailVerdict();

@@ -188,6 +188,18 @@ export async function verifyMail(timeoutMs = 4000): Promise<MailVerdict> {
     return remember({ ok: true, detail: 'Resend accepted the key' });
   }
 
+  // Resend's shared test sender. It works with no DNS at all, which makes it
+  // the fastest way to prove the rest of the chain - but it only ever
+  // delivers to the address that owns the Resend account, so a customer
+  // signing in would silently never receive a code. Green would be a lie.
+  if (domain === 'resend.dev') {
+    return remember({
+      ok: false,
+      detail: 'MAIL_FROM is Resend\'s shared test address. It only delivers to your own Resend account '
+        + 'address, so no customer can sign in. Verify pricebird.org in Resend and send from it.',
+    });
+  }
+
   const match = verified.find((entry) => entry.name?.toLowerCase() === domain);
   if (!match) {
     return remember({

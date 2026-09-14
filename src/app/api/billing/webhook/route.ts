@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { handleWebhook } from '@/lib/billing/stripe';
+import { redact } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
 
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
     console.info(`[stripe] ${outcome}`);
     return NextResponse.json({ received: true, outcome });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Webhook rejected.';
+    const message = redact(error instanceof Error ? error.message : 'Webhook rejected.');
     console.error(`[stripe] ${message}`);
     // 400 so Stripe retries a transient failure and shows the error in the
     // dashboard, which is where an operator will actually look.

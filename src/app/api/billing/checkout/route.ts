@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { SESSION_COOKIE, accountForRequest, sessionCookieOptions } from '@/lib/auth';
 import { billingConfigProblems, createCheckout } from '@/lib/billing/stripe';
+import { redact } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
 
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Checkout could not be started.' },
+      { error: redact(error instanceof Error ? error.message : 'Checkout could not be started.') },
       { status: 502 },
     );
   }

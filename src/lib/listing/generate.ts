@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ZodError } from 'zod';
 import { requireModel, supportsEffort } from '@/lib/models';
-import { readSecret } from '@/lib/secrets';
+import { redact, readSecret } from '@/lib/secrets';
 import { PLATFORMS, type Platform } from './platforms';
 import { ListingSchema, type Listing } from './schema';
 import { LISTING_SYSTEM, listingPrompt } from './prompts';
@@ -164,7 +164,7 @@ export class ListingFailure extends Error {
  */
 function translate(error: unknown): ListingFailure {
   const status = (error as { status?: number }).status;
-  const detail = error instanceof Error ? error.message : String(error);
+  const detail = redact(error instanceof Error ? error.message : String(error));
 
   if (status === 401 || status === 403) {
     return new ListingFailure(

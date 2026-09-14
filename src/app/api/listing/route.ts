@@ -6,6 +6,7 @@ import { quotaFor } from '@/lib/quota';
 import { checkLimit, clientAddress } from '@/lib/rate-limit';
 import { generateListing, ListingFailure, ACCEPTED_IMAGE_TYPES, MAX_IMAGES } from '@/lib/listing/generate';
 import { PLATFORMS, type Platform } from '@/lib/listing/platforms';
+import { redact } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
 /** Vision plus a full listing runs 10-25s; the platform default would cut it. */
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
     ({ account, setCookie } = await accountForRequest());
     quota = await quotaFor(account);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'The app is not configured.';
+    const message = redact(error instanceof Error ? error.message : 'The app is not configured.');
     console.error(`[listing] ${message}`);
     return NextResponse.json(
       { error: `This install is not finished: ${message}` },
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
     }
     // Everything else here is a rejected upload or a missing setting, and
     // those messages are already written for a person to act on.
-    const message = error instanceof Error ? error.message : 'The listing could not be generated.';
+    const message = redact(error instanceof Error ? error.message : 'The listing could not be generated.');
     return NextResponse.json({ error: message }, { status: 502 });
   }
 

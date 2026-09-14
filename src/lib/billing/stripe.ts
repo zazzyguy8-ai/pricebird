@@ -2,6 +2,7 @@ import Stripe from 'stripe';
 import { getStore, type Account } from '@/lib/db';
 import { PRICE_ENV, planFromStatus, type Interval } from './plans';
 import { REFERRAL_COUPON_ID, REWARD_BONUS_LISTINGS, REWARD_CREDIT_CENTS } from '@/lib/referrals';
+import { redact } from '@/lib/secrets';
 
 /**
  * Stripe, and the rule that a plan is only ever written from a verified
@@ -84,7 +85,7 @@ export async function createCheckout(account: Account, interval: Interval): Prom
 }
 
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return redact(error instanceof Error ? error.message : String(error));
 }
 
 /** Stripe reports a bad coupon as a resource problem on the discounts field

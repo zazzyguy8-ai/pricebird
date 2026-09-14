@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { billingConfigProblems } from '@/lib/billing/stripe';
 import { mailConfigProblems } from '@/lib/mail';
 import { getStore } from '@/lib/db';
-import { describeSecret } from '@/lib/secrets';
+import { redact, describeSecret } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -113,7 +113,7 @@ export async function GET(request: Request) {
       checks.push({
         name: 'database',
         ok: false,
-        detail: `could not connect: ${error instanceof Error ? error.message : 'unknown error'}`,
+        detail: redact(`could not connect: ${error instanceof Error ? error.message : 'unknown error'}`),
       });
     }
   }

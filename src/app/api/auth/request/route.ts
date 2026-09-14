@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { codeExpiry, generateCode, hashCode } from '@/lib/auth';
 import { getStore } from '@/lib/db';
-import { sendMail } from '@/lib/mail';
+import { sendMail, MailFailure } from '@/lib/mail';
+import { redact } from '@/lib/secrets';
 import { checkLimit, clientAddress } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     const store = await getStore();
     await store.putLoginCode({ email, code_hash: hashCode(email, code), expires_at: codeExpiry(), attempts: 0 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'The sign-in store is unavailable.';
+    const message = redact(error instanceof Error ? error.message : 'The sign-in store is unavailable.');
     console.error(`[auth] ${message}`);
     return NextResponse.json({ error: `Sign-in is not available: ${message}` }, { status: 503 });
   }
@@ -60,10 +61,15 @@ export async function POST(request: Request) {
       text: `Your sign-in code is ${code}.\n\nIt works for ten minutes. If you did not ask for it, ignore this email — nobody can get into your listings without it.`,
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'The code could not be sent.' },
-      { status: 502 },
-    );
+    // Two different strings on purpose. The operator detail names the real
+    // cause and stays in the log; the browser gets a sentence written for a
+    // person. They were once one string, and it printed an API key on screen.
+    if (error instanceof MailFailure) {
+      console.error(`[mail] ${error.operator}`);
+      return NextResponse.json({ error: error.message }, { status: 502 });
+    }
+    console.error(`[mail] ${redact(error instanceof Error ? error.message : String(error))}`);
+    return NextResponse.json({ error: 'The code could not be sent. Try again in a minute.' }, { status: 502 });
   }
 
   // Always the same answer, whether or not that address has an account. The

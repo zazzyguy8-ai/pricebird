@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { currentAccount } from '@/lib/auth';
 import { portalUrl } from '@/lib/billing/stripe';
+import { redact } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
 
@@ -15,7 +16,7 @@ export async function POST() {
     return NextResponse.json({ url: await portalUrl(account) });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'The billing portal could not be opened.' },
+      { error: redact(error instanceof Error ? error.message : 'The billing portal could not be opened.') },
       { status: 502 },
     );
   }

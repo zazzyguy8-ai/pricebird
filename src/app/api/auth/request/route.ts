@@ -17,30 +17,41 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'That is not an email address.' }, { status: 400 });
   }
 
-  // Two buckets, because either one alone is easy to walk around: per address
-  // stops somebody being mailed a hundred codes, per IP stops the same abuse
-  // spread across a hundred addresses. Without these the sign-in form is a
-  // free mail bomb pointed at anyone, sent from our verified domain.
-  for (const [bucket, identity] of [
-    ['codesPerEmail', email],
-    ['codesPerIp', clientAddress(request)],
-  ] as const) {
-    const limit = await checkLimit(
-      bucket,
-      identity,
-      'Too many sign-in codes requested. Wait an hour and try again.',
-    );
-    if (!limit.ok) {
-      return NextResponse.json(
-        { error: limit.message },
-        { status: 429, headers: { 'retry-after': String(limit.retryAfter) } },
-      );
-    }
-  }
-
+  // Everything that touches the database, wrapped. Uncaught it becomes a bare
+  // 500 with an HTML body, the browser cannot parse it, and the form shows its
+  // own fallback - "The code could not be sent." - which is the one sentence
+  // that describes neither the cause nor the fix. That is exactly how a
+  // missing table looked from the outside.
   const code = generateCode();
-  const store = await getStore();
-  await store.putLoginCode({ email, code_hash: hashCode(email, code), expires_at: codeExpiry(), attempts: 0 });
+  try {
+    // Two buckets, because either one alone is easy to walk around: per
+    // address stops somebody being mailed a hundred codes, per IP stops the
+    // same abuse spread across a hundred addresses. Without these the sign-in
+    // form is a free mail bomb pointed at anyone, sent from our own domain.
+    for (const [bucket, identity] of [
+      ['codesPerEmail', email],
+      ['codesPerIp', clientAddress(request)],
+    ] as const) {
+      const limit = await checkLimit(
+        bucket,
+        identity,
+        'Too many sign-in codes requested. Wait an hour and try again.',
+      );
+      if (!limit.ok) {
+        return NextResponse.json(
+          { error: limit.message },
+          { status: 429, headers: { 'retry-after': String(limit.retryAfter) } },
+        );
+      }
+    }
+
+    const store = await getStore();
+    await store.putLoginCode({ email, code_hash: hashCode(email, code), expires_at: codeExpiry(), attempts: 0 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'The sign-in store is unavailable.';
+    console.error(`[auth] ${message}`);
+    return NextResponse.json({ error: `Sign-in is not available: ${message}` }, { status: 503 });
+  }
 
   try {
     await sendMail({

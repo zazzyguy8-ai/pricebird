@@ -99,8 +99,16 @@ export async function GET(request: Request) {
     });
   } else {
     try {
-      await getStore();
-      checks.push({ name: 'database', ok: true, detail: 'connected' });
+      const store = await getStore();
+      const missing = await store.missingTables();
+      checks.push(missing.length === 0
+        ? { name: 'database', ok: true, detail: 'connected, schema up to date' }
+        : {
+          name: 'database',
+          ok: false,
+          detail: `connected, but the schema is behind the code - missing ${missing.join(', ')}. `
+            + 'Apply db/schema.sql again; it is idempotent and safe on live data.',
+        });
     } catch (error) {
       checks.push({
         name: 'database',

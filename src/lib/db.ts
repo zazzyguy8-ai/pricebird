@@ -71,6 +71,8 @@ export interface Store {
   init(): Promise<void>;
   /** Counts one hit against a bucket and says whether it is over. */
   hitRateLimit(key: string, limit: number, windowSeconds: number): Promise<RateVerdict>;
+  /** Which of the tables this app needs are missing from the live database. */
+  missingTables(): Promise<string[]>;
   createAccount(email?: string | null, referredBy?: string | null): Promise<Account>;
   findAccountByReferralCode(code: string): Promise<Account | null>;
   countReferrals(accountId: string): Promise<number>;
@@ -140,6 +142,10 @@ export class FileStore implements Store {
       this.data = { accounts: [], listings: [], codes: [], rates: [] };
     }
     this.data.rates ??= [];
+  }
+
+  async missingTables(): Promise<string[]> {
+    return [];
   }
 
   async hitRateLimit(key: string, limit: number, windowSeconds: number): Promise<RateVerdict> {
@@ -329,6 +335,39 @@ export class PgStore implements Store {
 
   async init(): Promise<void> {
     await this.query('select 1');
+  }
+
+  /**
+   * Schema drift, named.
+   *
+   * db/schema.sql grew tables and columns after the first deploy, and nothing
+   * told the operator to apply them. The symptom was a sign-in that failed
+   * with a message describing neither cause nor fix. Health can simply ask.
+   */
+  async missingTables(): Promise<string[]> {
+    const required = ['accounts', 'listings', 'login_codes', 'rate_limits'];
+    const rows = await this.query<{ table_name: string }>(
+      `select table_name from information_schema.tables
+       where table_schema = 'public' and table_name = any($1)`,
+      [required],
+    );
+    const present = new Set(rows.map((row) => row.table_name));
+    const missing = required.filter((table) => !present.has(table));
+
+    // Columns added later are the same class of problem and just as silent.
+    // Only worth asking when the table itself is there - otherwise the answer
+    // is four more lines all saying what "accounts" already said.
+    if (missing.includes('accounts')) return missing;
+
+    const columns = await this.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+       where table_schema = 'public' and table_name = 'accounts'`,
+    );
+    const have = new Set(columns.map((row) => row.column_name));
+    for (const column of ['referral_code', 'referred_by', 'referral_rewarded_at', 'bonus_listings']) {
+      if (!have.has(column)) missing.push(`accounts.${column}`);
+    }
+    return missing;
   }
 
   /**

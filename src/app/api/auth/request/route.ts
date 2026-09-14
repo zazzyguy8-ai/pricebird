@@ -4,7 +4,7 @@ import { codeExpiry, generateCode, hashCode } from '@/lib/auth';
 import { getStore } from '@/lib/db';
 import { sendMail, MailFailure } from '@/lib/mail';
 import { redact } from '@/lib/secrets';
-import { checkLimit, clientAddress } from '@/lib/rate-limit';
+import { checkLimit, clientAddress, releaseLimit, type LIMITS } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 
@@ -24,6 +24,17 @@ export async function POST(request: Request) {
   // that describes neither the cause nor the fix. That is exactly how a
   // missing table looked from the outside.
   const code = generateCode();
+
+  // Hits have to be counted BEFORE the work, because counting after it is a
+  // race two simultaneous requests would win. The consequence is that a
+  // request which then fails for a reason of ours has already spent somebody
+  // else's budget - so every counted hit is remembered here and handed back
+  // on any failure that is not the caller's fault.
+  const spent: [keyof typeof LIMITS, string][] = [];
+  const refund = async () => {
+    for (const [bucket, identity] of spent) await releaseLimit(bucket, identity).catch(() => {});
+  };
+
   try {
     // Two buckets, because either one alone is easy to walk around: per
     // address stops somebody being mailed a hundred codes, per IP stops the
@@ -38,7 +49,11 @@ export async function POST(request: Request) {
         identity,
         'Too many sign-in codes requested. Wait an hour and try again.',
       );
+      spent.push([bucket, identity]);
       if (!limit.ok) {
+        // Refused, so nothing was sent - and the hit that did the refusing
+        // must not also extend the window it was refused by.
+        await refund();
         return NextResponse.json(
           { error: limit.message },
           { status: 429, headers: { 'retry-after': String(limit.retryAfter) } },
@@ -49,6 +64,7 @@ export async function POST(request: Request) {
     const store = await getStore();
     await store.putLoginCode({ email, code_hash: hashCode(email, code), expires_at: codeExpiry(), attempts: 0 });
   } catch (error) {
+    await refund();
     const message = redact(error instanceof Error ? error.message : 'The sign-in store is unavailable.');
     console.error(`[auth] ${message}`);
     return NextResponse.json({ error: `Sign-in is not available: ${message}` }, { status: 503 });
@@ -64,6 +80,10 @@ export async function POST(request: Request) {
     // Two different strings on purpose. The operator detail names the real
     // cause and stays in the log; the browser gets a sentence written for a
     // person. They were once one string, and it printed an API key on screen.
+    // No code was sent, so no code may be charged for. Without this the
+    // person is locked out for an hour by our own broken configuration, on
+    // top of the failure that caused it - which is exactly what happened.
+    await refund();
     if (error instanceof MailFailure) {
       console.error(`[mail] ${error.operator}`);
       return NextResponse.json({ error: error.message }, { status: 502 });

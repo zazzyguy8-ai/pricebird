@@ -71,6 +71,8 @@ export interface Store {
   init(): Promise<void>;
   /** Counts one hit against a bucket and says whether it is over. */
   hitRateLimit(key: string, limit: number, windowSeconds: number): Promise<RateVerdict>;
+  /** Gives one hit back, for work that was counted and then never happened. */
+  releaseRateLimit(key: string): Promise<void>;
   /** Which of the tables this app needs are missing from the live database. */
   missingTables(): Promise<string[]>;
   createAccount(email?: string | null, referredBy?: string | null): Promise<Account>;
@@ -146,6 +148,13 @@ export class FileStore implements Store {
 
   async missingTables(): Promise<string[]> {
     return [];
+  }
+
+  async releaseRateLimit(key: string): Promise<void> {
+    const row = (this.data.rates ??= []).find((r) => r.key === key);
+    if (!row || new Date(row.reset_at).getTime() <= Date.now()) return;
+    row.count = Math.max(0, row.count - 1);
+    await this.flush();
   }
 
   async hitRateLimit(key: string, limit: number, windowSeconds: number): Promise<RateVerdict> {
@@ -368,6 +377,26 @@ export class PgStore implements Store {
       if (!have.has(column)) missing.push(`accounts.${column}`);
     }
     return missing;
+  }
+
+  /**
+   * Hands a hit back.
+   *
+   * A sign-in code that was counted and then never sent must not cost the
+   * person an hour. That is not hypothetical: a misconfigured sender rejected
+   * four sends in a row, and the fifth attempt - the one made after the
+   * configuration was fixed - was refused by our own limiter. The failure was
+   * ours in both halves.
+   *
+   * Guarded on reset_at so a hit cannot be returned into a window that has
+   * already rolled over into somebody else's count, and floored at zero.
+   */
+  async releaseRateLimit(key: string): Promise<void> {
+    await this.query(
+      `update rate_limits set count = greatest(0, count - 1)
+       where key = $1 and reset_at > now()`,
+      [key],
+    );
   }
 
   /**

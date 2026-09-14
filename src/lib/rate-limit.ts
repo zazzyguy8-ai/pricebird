@@ -60,3 +60,17 @@ export async function checkLimit(
   const retryAfter = Math.max(1, Math.ceil((new Date(verdict.resetAt).getTime() - Date.now()) / 1000));
   return { ok: verdict.allowed, retryAfter, message: humanMessage };
 }
+
+/**
+ * Undoes one counted hit.
+ *
+ * The limiter has to count before the work, because counting after it is a
+ * race. But a request that was counted and then failed for a reason that is
+ * ours - a rejected sender, a database that blinked - must not spend the
+ * person's budget. So the hit is returned, and the limit keeps meaning what
+ * it says: how many codes were actually sent.
+ */
+export async function releaseLimit(bucket: keyof typeof LIMITS, identity: string): Promise<void> {
+  const store = await getStore();
+  await store.releaseRateLimit(`${bucket}:${identity}`);
+}

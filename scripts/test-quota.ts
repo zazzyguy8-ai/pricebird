@@ -180,6 +180,33 @@ async function main(): Promise<void> {
   assert.equal(afterExpiry.count, 1, 'an elapsed window must roll over rather than accumulate');
   console.log('  ✓ rate limits count, refuse, roll over and stay independent');
 
+  // ---- handing a hit back ----------------------------------------------
+  // A code that was counted and never sent must not cost anybody an hour.
+  // This is the live failure: four sends were rejected by a misconfigured
+  // sender, and the fifth attempt - made after the configuration was fixed -
+  // was refused by our own limiter, for four codes that never existed.
+  await store.hitRateLimit('test:refund', 3, 60);
+  const twice = await store.hitRateLimit('test:refund', 3, 60);
+  assert.equal(twice.count, 2);
+  await store.releaseRateLimit('test:refund');
+  const afterRefund = await store.hitRateLimit('test:refund', 3, 60);
+  assert.equal(afterRefund.count, 2, 'a returned hit must free the slot it took');
+
+  // Never below zero, however many times it is returned.
+  for (let i = 0; i < 5; i += 1) await store.releaseRateLimit('test:refund');
+  const fromFloor = await store.hitRateLimit('test:refund', 3, 60);
+  assert.equal(fromFloor.count, 1, 'over-refunding must floor at zero, not go negative');
+
+  // Refunding something that was never counted is harmless.
+  await store.releaseRateLimit('test:never-counted');
+
+  // And a refund must not reach into a window that has already rolled over.
+  await store.hitRateLimit('test:gone', 2, -1);
+  await store.releaseRateLimit('test:gone');
+  const rolledOver = await store.hitRateLimit('test:gone', 2, 60);
+  assert.equal(rolledOver.count, 1, 'an elapsed window is not somebody else\'s to credit');
+  console.log('  ✓ a hit that bought nothing is handed back');
+
   await rm(dir, { recursive: true, force: true });
   console.log('all quota tests passed\n');
 }

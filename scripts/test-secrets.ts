@@ -14,7 +14,7 @@
  * sentence a person reads.
  */
 import assert from 'node:assert/strict';
-import { MailFailure, mailConfigProblems, sendMail } from '../src/lib/mail';
+import { MailFailure, forgetMailVerdict, mailConfigProblems, sendMail, verifyMail } from '../src/lib/mail';
 import { SECRET_NAMES, describeSecret, isHeaderSafe, readSecret, redact } from '../src/lib/secrets';
 
 /**
@@ -37,7 +37,16 @@ const FAKE = {
   DATABASE_URL: 'postgresql://user:NOTREALPASSWORD@db.example.com:5432/postgres',
 };
 
-function withEnv<T>(env: Record<string, string | undefined>, run: () => T): T {
+/**
+ * Runs something with the environment temporarily replaced.
+ *
+ * The await matters. Written as a plain try/finally around `return run()`,
+ * the finally fires the moment an async callback yields its first promise,
+ * so the environment is restored while the code under test is still running
+ * and every later read sees nothing. That cost an hour of blaming the code
+ * for a fault in the harness - so the promise is awaited inside the guard.
+ */
+async function withEnv<T>(env: Record<string, string | undefined>, run: () => T | Promise<T>): Promise<T> {
   const saved: Record<string, string | undefined> = {};
   for (const [key, value] of Object.entries(env)) {
     saved[key] = process.env[key];
@@ -45,7 +54,7 @@ function withEnv<T>(env: Record<string, string | undefined>, run: () => T): T {
     else process.env[key] = value;
   }
   try {
-    return run();
+    return await run();
   } finally {
     for (const [key, value] of Object.entries(saved)) {
       if (value === undefined) delete process.env[key];
@@ -54,8 +63,8 @@ function withEnv<T>(env: Record<string, string | undefined>, run: () => T): T {
   }
 }
 
-function everySecretIsRemoved(): void {
-  withEnv(FAKE, () => {
+async function everySecretIsRemoved(): Promise<void> {
+  await withEnv(FAKE, () => {
     for (const name of SECRET_NAMES) {
       const value = process.env[name]!;
       const leaked = `Headers.append: "Bearer ${value}" is an invalid header value.`;
@@ -66,29 +75,29 @@ function everySecretIsRemoved(): void {
   });
 }
 
-function theUntrimmedFormIsRemovedToo(): void {
+async function theUntrimmedFormIsRemovedToo(): Promise<void> {
   // The exact shape of the live incident: the dashboard kept a newline, so
   // the stored value and the value used in the request were different strings.
   const raw = `${FAKE.RESEND_API_KEY}\n`;
-  withEnv({ RESEND_API_KEY: raw }, () => {
+  await withEnv({ RESEND_API_KEY: raw }, () => {
     assert.ok(!redact(`sent with ${raw}`).includes(FAKE.RESEND_API_KEY));
     assert.ok(!redact(`sent with ${FAKE.RESEND_API_KEY}`).includes(FAKE.RESEND_API_KEY));
   });
 }
 
-function ordinaryMessagesSurvive(): void {
-  withEnv(FAKE, () => {
+async function ordinaryMessagesSurvive(): Promise<void> {
+  await withEnv(FAKE, () => {
     const message = 'Resend refused the send (422): the from address is not verified.';
     assert.equal(redact(message), message);
   });
   // A secret too short to be worth protecting must not eat real words.
-  withEnv({ SESSION_SECRET: 'short' }, () => {
+  await withEnv({ SESSION_SECRET: 'short' }, () => {
     assert.equal(redact('this is a short sentence'), 'this is a short sentence');
   });
 }
 
-function aMailFailureNeverCarriesTheKeyToTheReader(): void {
-  withEnv(FAKE, () => {
+async function aMailFailureNeverCarriesTheKeyToTheReader(): Promise<void> {
+  await withEnv(FAKE, () => {
     const failure = new MailFailure(
       'The code could not be sent.',
       `Headers.append: "Bearer ${FAKE.RESEND_API_KEY}" is an invalid header value.`,
@@ -101,7 +110,7 @@ function aMailFailureNeverCarriesTheKeyToTheReader(): void {
   });
 }
 
-function anIllegalKeyIsRefusedBeforeItIsEverPutInAHeader(): void {
+async function anIllegalKeyIsRefusedBeforeItIsEverPutInAHeader(): Promise<void> {
   assert.equal(isHeaderSafe(`${FAKE.RESEND_API_KEY} `), false, 'a trailing space must be caught');
   assert.equal(isHeaderSafe(`${FAKE.RESEND_API_KEY}\n`), false, 'a newline must be caught');
   assert.equal(isHeaderSafe(`${FAKE.RESEND_API_KEY}\u00a0`), false, 'a non-breaking space must be caught');
@@ -110,7 +119,7 @@ function anIllegalKeyIsRefusedBeforeItIsEverPutInAHeader(): void {
 
   // A trailing newline is not an error at all: readSecret removes it, so the
   // send simply works. That is the whole point of reading secrets forgivingly.
-  withEnv({ RESEND_API_KEY: `${FAKE.RESEND_API_KEY}\n`, MAIL_FROM: 'hi@pricebird.org' }, () => {
+  await withEnv({ RESEND_API_KEY: `${FAKE.RESEND_API_KEY}\n`, MAIL_FROM: 'hi@pricebird.org' }, () => {
     assert.equal(readSecret('RESEND_API_KEY'), FAKE.RESEND_API_KEY);
     assert.deepEqual(mailConfigProblems(), []);
   });
@@ -124,7 +133,7 @@ function anIllegalKeyIsRefusedBeforeItIsEverPutInAHeader(): void {
   const gaps = [['\u00a0', /cannot be sent in an HTTP header/], [' ', /truncated on paste/]] as const;
   for (const [gap, expected] of gaps) {
     const illegal = `${FAKE.RESEND_API_KEY.slice(0, 10)}${gap}${FAKE.RESEND_API_KEY.slice(10)}`;
-    withEnv({ RESEND_API_KEY: illegal, MAIL_FROM: 'hi@pricebird.org' }, () => {
+    await withEnv({ RESEND_API_KEY: illegal, MAIL_FROM: 'hi@pricebird.org' }, () => {
       const problems = mailConfigProblems();
       assert.equal(problems.length, 1, `expected one problem for gap ${JSON.stringify(gap)}`);
       assert.match(problems[0], expected);
@@ -154,14 +163,92 @@ async function theSendPathRefusesRatherThanThrowingRawText(): Promise<void> {
   );
 }
 
-function describeSecretDescribesWithoutRevealing(): void {
-  withEnv({ RESEND_API_KEY: `"${FAKE.RESEND_API_KEY}" ` }, () => {
+async function describeSecretDescribesWithoutRevealing(): Promise<void> {
+  await withEnv({ RESEND_API_KEY: `"${FAKE.RESEND_API_KEY}" ` }, () => {
     const shape = describeSecret('RESEND_API_KEY', 're_');
     assert.equal(shape.present, true);
     assert.equal(shape.length, FAKE.RESEND_API_KEY.length);
     assert.equal(shape.problems.length, 2);
     for (const problem of shape.problems) {
       assert.ok(!problem.includes(FAKE.RESEND_API_KEY.slice(3)), 'a problem quoted the key');
+    }
+  });
+}
+
+/**
+ * What health is allowed to claim about email.
+ *
+ * The check used to look only at the environment - present, right length,
+ * legal characters - and reported "Resend configured" in bright green while
+ * Resend was rejecting every single send. A health check that is confidently
+ * wrong is worse than one that does not exist: it sends you looking in the
+ * wrong place. So the question is now asked of Resend, and these tests pin
+ * down every answer it can give.
+ */
+async function withResend<T>(
+  reply: { status: number; body?: unknown } | 'unreachable',
+  run: () => Promise<T>,
+): Promise<T> {
+  const real = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    if (reply === 'unreachable') throw new TypeError('fetch failed');
+    return new Response(JSON.stringify(reply.body ?? {}), {
+      status: reply.status,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = real;
+  }
+}
+
+async function healthTellsTheTruthAboutEmail(): Promise<void> {
+  const env = { RESEND_API_KEY: FAKE.RESEND_API_KEY, MAIL_FROM: 'codes@pricebird.org' };
+  const domains = (status: string) => ({ data: [{ name: 'pricebird.org', status }] });
+
+  const cases: [string, { status: number; body?: unknown } | 'unreachable', boolean, RegExp][] = [
+    ['a working key and a verified domain', { status: 200, body: domains('verified') }, true, /accepted the key/],
+    ['a rejected key', { status: 401 }, false, /rejected the key/],
+    ['a key from another account', { status: 403 }, false, /rejected the key/],
+    ['a domain that is not on the account', { status: 200, body: { data: [] } }, false, /not a domain on this account/],
+    ['a domain still waiting on DNS', { status: 200, body: domains('pending') }, false, /rather than verified/],
+    ['Resend being down', 'unreachable', true, /could not be reached/],
+  ];
+
+  for (const [name, reply, ok, expected] of cases) {
+    forgetMailVerdict();
+    const verdict = await withEnv(env, () => withResend(reply, () => verifyMail(500)));
+    assert.equal(verdict.ok, ok, `${name}: expected ok=${ok}, got ${verdict.ok} - "${verdict.detail}"`);
+    assert.match(verdict.detail, expected, name);
+    assert.ok(!verdict.detail.includes(FAKE.RESEND_API_KEY.slice(0, 10)), `${name}: health quoted the key`);
+  }
+
+  // Resend being unreachable is not a misconfiguration, and it must not be
+  // remembered either - the next look has to ask again.
+  forgetMailVerdict();
+  await withEnv(env, async () => {
+    await withResend('unreachable', () => verifyMail(500));
+    const second = await withResend({ status: 200, body: domains('verified') }, () => verifyMail(500));
+    assert.equal(second.ok, true);
+    assert.match(second.detail, /accepted the key/, 'a blip was cached and outlived itself');
+  });
+
+  // A real answer is cached, because health is a public URL and must not
+  // become a way to hammer Resend with our credentials.
+  forgetMailVerdict();
+  await withEnv(env, async () => {
+    await withResend({ status: 200, body: domains('verified') }, () => verifyMail(500));
+    let called = false;
+    const real = globalThis.fetch;
+    globalThis.fetch = (async () => { called = true; return new Response('{}', { status: 401 }); }) as typeof fetch;
+    try {
+      const again = await verifyMail(500);
+      assert.equal(called, false, 'the cached answer was not used');
+      assert.equal(again.ok, true);
+    } finally {
+      globalThis.fetch = real;
     }
   });
 }
@@ -176,6 +263,7 @@ async function main(): Promise<void> {
     ['a key that cannot be a header is caught before the request', anIllegalKeyIsRefusedBeforeItIsEverPutInAHeader],
     ['the send path fails with a sentence, not with library text', theSendPathRefusesRatherThanThrowingRawText],
     ['a secret is described by its shape, never by its contents', describeSecretDescribesWithoutRevealing],
+    ['health asks Resend rather than guessing from the environment', healthTellsTheTruthAboutEmail],
   ];
 
   for (const [name, run] of tests) {

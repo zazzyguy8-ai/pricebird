@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { billingConfigProblems } from '@/lib/billing/stripe';
-import { mailConfigProblems } from '@/lib/mail';
+import { verifyMail } from '@/lib/mail';
 import { getStore } from '@/lib/db';
 import { redact, describeSecret } from '@/lib/secrets';
 
@@ -84,12 +84,11 @@ export async function GET(request: Request) {
     detail: billing.length === 0 ? 'Stripe configured' : billing.join(' '),
   });
 
-  const mail = mailConfigProblems();
-  checks.push({
-    name: 'email',
-    ok: mail.length === 0,
-    detail: mail.length === 0 ? 'Resend configured' : mail.join(' '),
-  });
+  // Asked of Resend rather than of the environment. "Resend configured" was
+  // reported green while every send was being rejected, which is the one
+  // answer a health check must never give.
+  const mail = await verifyMail();
+  checks.push({ name: 'email', ok: mail.ok, detail: mail.detail });
 
   if (!process.env.DATABASE_URL) {
     checks.push({

@@ -109,3 +109,100 @@ export async function sendMail(mail: Mail): Promise<void> {
     );
   }
 }
+
+export interface MailVerdict {
+  ok: boolean;
+  detail: string;
+}
+
+/**
+ * Asks Resend whether the key actually works.
+ *
+ * Config checks can only see shape: present, right length, legal characters.
+ * All three passed while Resend was rejecting every send, so health reported
+ * "configured" about a service that was refusing to work - which is worse
+ * than no check at all, because it sends you looking somewhere else.
+ *
+ * One authenticated GET settles it, and the same response says whether the
+ * address in MAIL_FROM belongs to a domain this account has verified. That is
+ * the other half: a perfectly valid key still cannot send from a domain
+ * somebody forgot to finish setting up.
+ */
+let cached: { key: string; at: number; verdict: MailVerdict } | null = null;
+const CACHE_MS = 30_000;
+
+export function forgetMailVerdict(): void {
+  cached = null;
+}
+
+export async function verifyMail(timeoutMs = 4000): Promise<MailVerdict> {
+  const problems = mailConfigProblems();
+  if (problems.length > 0) return { ok: false, detail: problems.join(' ') };
+
+  const key = readSecret('RESEND_API_KEY')!;
+  const from = readSecret('MAIL_FROM')!;
+
+  // Health is a public URL, so without this anyone could turn it into a way
+  // to hammer Resend with our credentials. Keyed on the key itself, so the
+  // answer changes the moment the variable does rather than half a minute
+  // later - which matters when somebody is standing at the dashboard fixing
+  // exactly this and refreshing to see whether it worked.
+  if (cached && cached.key === key && Date.now() - cached.at < CACHE_MS) return cached.verdict;
+
+  const remember = (verdict: MailVerdict): MailVerdict => {
+    cached = { key, at: Date.now(), verdict };
+    return verdict;
+  };
+
+  let response: Response;
+  try {
+    response = await fetch('https://api.resend.com/domains', {
+      headers: { authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch {
+    // Not a failure of configuration, so it must not read like one.
+    // Deliberately not remembered: a network blip must not be repeated back
+    // for half a minute after it has passed.
+    return { ok: true, detail: 'configured, but Resend could not be reached just now to confirm the key' };
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    return remember({
+      ok: false,
+      detail: 'Resend rejected the key. It was deleted, it was pasted incompletely, or it belongs to '
+        + 'a different Resend account. Create a new key with sending access and paste it again.',
+    });
+  }
+  if (!response.ok) {
+    return remember({ ok: false, detail: `Resend answered ${response.status} when asked to confirm the key.` });
+  }
+
+  // The sender's domain, checked against the ones Resend says are verified.
+  const domain = from.includes('@') ? from.split('@').pop()!.replace(/>$/, '').trim().toLowerCase() : '';
+  let verified: { name?: string; status?: string }[] = [];
+  try {
+    const body = await response.json() as { data?: { name?: string; status?: string }[] };
+    verified = body.data ?? [];
+  } catch {
+    return remember({ ok: true, detail: 'Resend accepted the key' });
+  }
+
+  const match = verified.find((entry) => entry.name?.toLowerCase() === domain);
+  if (!match) {
+    return remember({
+      ok: false,
+      detail: `Resend accepted the key, but ${domain || 'the MAIL_FROM domain'} is not a domain on this `
+        + 'account. Sign-in codes cannot be sent from an address Resend does not own.',
+    });
+  }
+  if (match.status !== 'verified') {
+    return remember({
+      ok: false,
+      detail: `Resend accepted the key, but the domain ${domain} is "${match.status}" rather than verified. `
+        + 'Finish its DNS records in Resend before any code can be sent.',
+    });
+  }
+
+  return remember({ ok: true, detail: `Resend accepted the key and ${domain} is verified` });
+}

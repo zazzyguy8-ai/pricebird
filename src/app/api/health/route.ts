@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic';
  * safe to leave open. Knowing that STRIPE_WEBHOOK_SECRET is unset tells an
  * attacker nothing they could not learn by paying and watching what happens.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const checks: Array<{ name: string; ok: boolean; detail: string }> = [];
 
   // The shape of the key, never the key: a rejected key is almost always a
@@ -35,6 +35,39 @@ export async function GET() {
         : `Claude key is ${claude.length} characters and ${claude.problems.join('; ')}`
       : 'ANTHROPIC_API_KEY is not set',
   });
+
+  // APP_URL against the address this request actually arrived on.
+  //
+  // A typo here is invisible everywhere else: the app serves fine, the webhook
+  // does not use it, and the only symptom is that a customer who has just paid
+  // is returned to a domain that does not exist. That happened with
+  // "pricebird.orgr" - one stray letter, after a real card was charged. The
+  // request knows the true host, so the mismatch is detectable rather than
+  // something to notice by losing a customer.
+  const configured = (process.env.APP_URL ?? '').trim();
+  const servedHost = request.headers.get('host');
+  let appUrlDetail = 'APP_URL is not set - checkout has nowhere to return the customer to';
+  let appUrlOk = false;
+
+  if (configured) {
+    try {
+      const configuredHost = new URL(configured).host;
+      if (!servedHost) {
+        appUrlOk = true;
+        appUrlDetail = `${configured} (no host header to compare against)`;
+      } else if (configuredHost === servedHost) {
+        appUrlOk = true;
+        appUrlDetail = configured;
+      } else {
+        appUrlDetail = `APP_URL is ${configured}, but this page was served from ${servedHost}. `
+          + 'After paying, customers are sent to the APP_URL one - check it for a typo.';
+      }
+    } catch {
+      appUrlDetail = `APP_URL is "${configured}", which is not a valid URL`;
+    }
+  }
+
+  checks.push({ name: 'return address', ok: appUrlOk, detail: appUrlDetail });
 
   checks.push({
     name: 'sessions',

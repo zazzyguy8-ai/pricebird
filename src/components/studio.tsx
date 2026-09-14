@@ -265,21 +265,50 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
   );
 }
 
+/**
+ * What the plan is, and for a paying customer, what it bought.
+ *
+ * The Pro state used to be a count and the word "Pro", which answers a
+ * question nobody asked. Somebody who has just paid wants to know what
+ * changed - and the honest answer is not "a bigger number". It is the two
+ * modes and the house style, which are the whole reason the subscription is
+ * worth keeping and which are invisible from this page: a customer who never
+ * finds /bulk pays for a month of a tool they are using at a fifth of its
+ * value, and then cancels, correctly.
+ *
+ * So the plan line names them. On the page a seller is on every day, that is
+ * the cheapest retention there is.
+ */
 export function QuotaBar({ quota, signedIn }: { quota: Quota; signedIn: boolean }) {
   const pct = Math.min(100, Math.round((quota.used / quota.limit) * 100));
+  const pro = quota.plan === 'pro';
+
   return (
     <div className="card card-tight stack" style={{ gap: 8 }}>
       <div className="spread">
         <span className="small dim">
-          {quota.plan === 'free'
-            ? `${quota.remaining} of ${quota.limit} free listings left`
-            : `${quota.used} listings this month`}
+          {pro
+            ? `${quota.used} ${quota.used === 1 ? 'listing' : 'listings'} this month · no limit to worry about`
+            : `${quota.remaining} of ${quota.limit} free listings left`}
         </span>
-        {quota.plan === 'free'
-          ? <Link href="/pricing" className="btn-quiet">Go Pro</Link>
-          : <span className="pill pill-accent">Pro</span>}
+        {pro
+          ? <span className="pill pill-accent">Pro</span>
+          : <Link href="/pricing" className="btn-quiet">Go Pro</Link>}
       </div>
-      {quota.plan === 'free' && <div className="meter"><i style={{ width: `${pct}%` }} /></div>}
+
+      {!pro && <div className="meter"><i style={{ width: `${pct}%` }} /></div>}
+
+      {pro && (
+        <p className="small faint">
+          Your subscription also turns on{' '}
+          <Link href="/bulk" className="accent">Bulk</Link> — twenty photos at once, exported as a
+          CSV — and <Link href="/relist" className="accent">Fix a listing</Link>, which tells you why
+          something is not selling. Set your{' '}
+          <Link href="/account" className="accent">house style</Link> once and every listing comes
+          back in your words, with your postage terms on the end.
+        </p>
+      )}
+
       {!signedIn && quota.used > 0 && (
         <p className="small faint">
           Saved to this browser. <Link href="/signin" className="accent">Add an email</Link> to keep them.

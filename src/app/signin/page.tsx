@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { Footer, Nav } from '@/components/chrome';
 import { SignInForm } from '@/components/signin-form';
 import { verifyMail } from '@/lib/mail';
@@ -8,24 +7,23 @@ export const metadata: Metadata = { title: 'Sign in' };
 export const dynamic = 'force-dynamic';
 
 /**
- * The page says whether it can do its job before you try.
+ * The form is always here. Always.
  *
- * A paying customer who cannot sign in is a refund, so the failure this page
- * can have is the most expensive one in the product - and it used to be
- * invisible: the form looked fine, the button worked, and the reason only
- * appeared after you had typed your address and spent one of four attempts.
- * People do not conclude "their email provider is misconfigured". They
- * conclude the product is broken, and they are not wrong to.
+ * An earlier version of this page read the mail service and, when it looked
+ * unhealthy, replaced the form with an explanation. That was a mistake of a
+ * particular kind worth naming, because it is easy to make again: a check
+ * that can only ever remove an option is not a safety feature. Trying and
+ * failing costs one attempt and produces a real error message. Not being
+ * allowed to try costs the account.
  *
- * So the state of the mail service is read here, on the server, before the
- * form is drawn. The answer is cached for thirty seconds, so this costs a
- * request a minute at worst and tells the truth the rest of the time.
+ * It removed the option from exactly the person it should have helped - the
+ * operator, mid-fix, whose own sign-in still worked - and it did so on the
+ * strength of my guess about what the mail service would do, rather than on
+ * what it actually did when asked.
  *
- * It asks canSend, never ok. They are different questions and conflating them
- * caused the exact harm this page exists to prevent: a temporary sending
- * address is red for health - no customer can receive a code - but it sends
- * perfectly to the operator, who is the one person mid-fix who needs to get
- * in. Hiding the form on `ok` locked out the only person it still worked for.
+ * So the check stays, because saying "codes are not arriving and it is our
+ * fault" before somebody waits ten minutes for one is worth a lot. What it no
+ * longer does is decide on their behalf.
  */
 export default async function SignInPage() {
   const mail = await verifyMail();
@@ -43,34 +41,26 @@ export default async function SignInPage() {
             </p>
           </div>
 
-          {!mail.canSend ? (
-            <div className="card stack" style={{ gap: 12 }}>
-              <span className="pill pill-warn">Sign-in codes are down</span>
-              <p>
-                Our email is not sending right now, so the code would never arrive. This is a fault
-                on our side and it is being fixed — nothing is wrong with your account.
-              </p>
-              <p className="dim small">
-                If you are signed in on another device you are still signed in there, and your
-                listings and subscription are untouched. If you are paying and stuck, email{' '}
-                <a href="mailto:hello@pricebird.org">hello@pricebird.org</a> and we will sort it
-                out by hand.
-              </p>
-              <div className="row">
-                <Link href="/app" className="btn btn-ghost">Write a listing without signing in</Link>
-              </div>
+          {!mail.canSend && (
+            <div className="note note-warn stack" style={{ gap: 8 }}>
+              <strong>Codes may not be arriving right now.</strong>
+              <span className="small">
+                Our email provider is refusing to send and we are fixing it. Nothing is wrong with
+                your account, and your listings and subscription are untouched. Try anyway — if
+                nothing lands in a minute, this is why, and{' '}
+                <a href="mailto:hello@pricebird.org">hello@pricebird.org</a> reaches a person.
+              </span>
             </div>
-          ) : (
-            <>
-              <SignInForm />
-              {!mail.ok && (
-                <p className="note small">
-                  Codes are going out from a temporary address while our own domain finishes
-                  setting up. If yours does not arrive, that is why — try again shortly.
-                </p>
-              )}
-            </>
           )}
+
+          {mail.canSend && !mail.ok && (
+            <p className="note small">
+              Codes are going out from a temporary address while our own domain finishes setting
+              up. If yours does not arrive, that is why.
+            </p>
+          )}
+
+          <SignInForm />
         </div>
       </main>
       <Footer />

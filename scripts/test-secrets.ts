@@ -142,6 +142,43 @@ async function anIllegalKeyIsRefusedBeforeItIsEverPutInAHeader(): Promise<void> 
   }
 }
 
+/**
+ * The same status code, two different faults.
+ *
+ * Resend answers 403 both for a key it will not accept and for a domain that
+ * was never verified. Reporting "credentials" for both cost an afternoon of
+ * replacing a key that was fine, while the real answer sat in the response
+ * body. The body decides which sentence is shown.
+ */
+async function aRejectionNamesTheRightFault(): Promise<void> {
+  const cases: [string, string, RegExp][] = [
+    ['an unverified domain', '{"message":"The pricebird.org domain is not verified."}', /sending domain is not verified/],
+    ['a bad key', '{"message":"API key is invalid"}', /rejected our credentials/],
+  ];
+
+  for (const [name, body, expected] of cases) {
+    const real = globalThis.fetch;
+    globalThis.fetch = (async () => new Response(body, { status: 403 })) as typeof fetch;
+    try {
+      await withEnv(
+        { RESEND_API_KEY: FAKE.RESEND_API_KEY, MAIL_FROM: 'hello@pricebird.org', NODE_ENV: 'production' },
+        async () => {
+          await assert.rejects(
+            sendMail({ to: 'someone@example.com', subject: 'x', text: 'y' }),
+            (error: unknown) => {
+              assert.ok(error instanceof MailFailure, name);
+              assert.match(error.message, expected, name);
+              return true;
+            },
+          );
+        },
+      );
+    } finally {
+      globalThis.fetch = real;
+    }
+  }
+}
+
 async function theSendPathRefusesRatherThanThrowingRawText(): Promise<void> {
   await withEnv(
     {
@@ -282,6 +319,7 @@ async function main(): Promise<void> {
     ['a mail failure keeps the key out of both of its halves', aMailFailureNeverCarriesTheKeyToTheReader],
     ['a key that cannot be a header is caught before the request', anIllegalKeyIsRefusedBeforeItIsEverPutInAHeader],
     ['the send path fails with a sentence, not with library text', theSendPathRefusesRatherThanThrowingRawText],
+    ['a 403 names the domain or the key, whichever it actually was', aRejectionNamesTheRightFault],
     ['a secret is described by its shape, never by its contents', describeSecretDescribesWithoutRevealing],
     ['health asks Resend rather than guessing from the environment', healthTellsTheTruthAboutEmail],
   ];

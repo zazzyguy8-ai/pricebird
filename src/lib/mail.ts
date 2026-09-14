@@ -101,10 +101,18 @@ export async function sendMail(mail: Mail): Promise<void> {
 
   if (!response.ok) {
     const body = (await response.text()).slice(0, 300);
+
+    // Resend answers 403 for two completely different faults, and saying
+    // "credentials" for both sent an afternoon chasing a key that was fine
+    // while the real answer - an unverified sending domain - was sitting in
+    // the response body all along. Read the body and name the right one.
+    const unverified = /not verified|verify.*domain|domain.*verif/i.test(body);
     throw new MailFailure(
-      response.status === 401 || response.status === 403
-        ? 'The email service rejected our credentials, so the code could not be sent. This is our problem, not yours.'
-        : 'The email service refused the message, so the code could not be sent. Try again in a minute.',
+      unverified
+        ? 'Our sending domain is not verified yet, so the code could not be sent. This is our problem, not yours.'
+        : response.status === 401 || response.status === 403
+          ? 'The email service rejected our credentials, so the code could not be sent. This is our problem, not yours.'
+          : 'The email service refused the message, so the code could not be sent. Try again in a minute.',
       `Resend refused the send (${response.status}): ${body}`,
     );
   }

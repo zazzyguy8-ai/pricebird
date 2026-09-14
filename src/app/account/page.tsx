@@ -10,6 +10,7 @@ import { quotaFor } from '@/lib/quota';
 import { ReferralCard } from '@/components/referral-card';
 import { HouseStyle } from '@/components/house-style';
 import { readProfile } from '@/lib/listing/profile';
+import { verifyMail } from '@/lib/mail';
 import { referralLink } from '@/lib/referrals';
 
 export const metadata: Metadata = { title: 'Account' };
@@ -46,6 +47,21 @@ export default async function AccountPage() {
   const invited = await store.countReferrals(account.id);
   const appUrl = process.env.APP_URL ?? 'https://pricebird.org';
 
+  // Whether this person could actually get back in, asked before they are
+  // offered the button that puts them out. Two ways to be locked out and they
+  // need different sentences: no email on the account is permanent and theirs
+  // to fix; a mail service that is not sending is temporary and ours.
+  const mail = await verifyMail();
+  const signOutWarning = !account.email
+    ? 'There is no email on this account, so there is no way to sign back in. Everything - your '
+      + `listings${account.plan === 'pro' ? ' and your Pro subscription' : ''} - lives in this browser only. `
+      + 'Attach an email first and this becomes safe.'
+    : !mail.ok
+      ? 'Sign-in codes are not sending right now, so you would not be able to get back in until '
+        + 'that is fixed. Nothing is wrong with your account - wait, or sign out from a device you '
+        + 'do not need.'
+      : null;
+
   return (
     <>
       <Nav cta="Write a listing" />
@@ -53,7 +69,7 @@ export default async function AccountPage() {
         <div className="stack" style={{ gap: 22 }}>
           <div className="spread">
             <h2 style={{ fontSize: 28 }}>Account</h2>
-            <SignOutButton />
+            <SignOutButton warning={signOutWarning} />
           </div>
 
           <div className="grid-2">

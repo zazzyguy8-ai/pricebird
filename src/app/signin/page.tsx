@@ -1,10 +1,29 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { Footer, Nav } from '@/components/chrome';
 import { SignInForm } from '@/components/signin-form';
+import { verifyMail } from '@/lib/mail';
 
 export const metadata: Metadata = { title: 'Sign in' };
+export const dynamic = 'force-dynamic';
 
-export default function SignInPage() {
+/**
+ * The page says whether it can do its job before you try.
+ *
+ * A paying customer who cannot sign in is a refund, so the failure this page
+ * can have is the most expensive one in the product - and it used to be
+ * invisible: the form looked fine, the button worked, and the reason only
+ * appeared after you had typed your address and spent one of four attempts.
+ * People do not conclude "their email provider is misconfigured". They
+ * conclude the product is broken, and they are not wrong to.
+ *
+ * So the state of the mail service is read here, on the server, before the
+ * form is drawn. The answer is cached for thirty seconds, so this costs a
+ * request a minute at worst and tells the truth the rest of the time.
+ */
+export default async function SignInPage() {
+  const mail = await verifyMail();
+
   return (
     <>
       <Nav cta="Start free" />
@@ -17,7 +36,27 @@ export default function SignInPage() {
               already, they come with you.
             </p>
           </div>
-          <SignInForm />
+
+          {!mail.ok ? (
+            <div className="card stack" style={{ gap: 12 }}>
+              <span className="pill pill-warn">Sign-in codes are down</span>
+              <p>
+                Our email is not sending right now, so the code would never arrive. This is a fault
+                on our side and it is being fixed — nothing is wrong with your account.
+              </p>
+              <p className="dim small">
+                If you are signed in on another device you are still signed in there, and your
+                listings and subscription are untouched. If you are paying and stuck, email{' '}
+                <a href="mailto:hello@pricebird.org">hello@pricebird.org</a> and we will sort it
+                out by hand.
+              </p>
+              <div className="row">
+                <Link href="/app" className="btn btn-ghost">Write a listing without signing in</Link>
+              </div>
+            </div>
+          ) : (
+            <SignInForm />
+          )}
         </div>
       </main>
       <Footer />

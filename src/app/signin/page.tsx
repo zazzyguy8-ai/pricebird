@@ -20,6 +20,12 @@ export const dynamic = 'force-dynamic';
  * So the state of the mail service is read here, on the server, before the
  * form is drawn. The answer is cached for thirty seconds, so this costs a
  * request a minute at worst and tells the truth the rest of the time.
+ *
+ * It asks canSend, never ok. They are different questions and conflating them
+ * caused the exact harm this page exists to prevent: a temporary sending
+ * address is red for health - no customer can receive a code - but it sends
+ * perfectly to the operator, who is the one person mid-fix who needs to get
+ * in. Hiding the form on `ok` locked out the only person it still worked for.
  */
 export default async function SignInPage() {
   const mail = await verifyMail();
@@ -37,7 +43,7 @@ export default async function SignInPage() {
             </p>
           </div>
 
-          {!mail.ok ? (
+          {!mail.canSend ? (
             <div className="card stack" style={{ gap: 12 }}>
               <span className="pill pill-warn">Sign-in codes are down</span>
               <p>
@@ -55,7 +61,15 @@ export default async function SignInPage() {
               </div>
             </div>
           ) : (
-            <SignInForm />
+            <>
+              <SignInForm />
+              {!mail.ok && (
+                <p className="note small">
+                  Codes are going out from a temporary address while our own domain finishes
+                  setting up. If yours does not arrive, that is why — try again shortly.
+                </p>
+              )}
+            </>
           )}
         </div>
       </main>

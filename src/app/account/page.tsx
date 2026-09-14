@@ -56,7 +56,7 @@ export default async function AccountPage() {
     ? 'There is no email on this account, so there is no way to sign back in. Everything - your '
       + `listings${account.plan === 'pro' ? ' and your Pro subscription' : ''} - lives in this browser only. `
       + 'Attach an email first and this becomes safe.'
-    : !mail.ok
+    : !mail.canSend
       ? 'Sign-in codes are not sending right now, so you would not be able to get back in until '
         + 'that is fixed. Nothing is wrong with your account - wait, or sign out from a device you '
         + 'do not need.'

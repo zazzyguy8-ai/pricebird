@@ -245,19 +245,24 @@ async function healthTellsTheTruthAboutEmail(): Promise<void> {
   const env = { RESEND_API_KEY: FAKE.RESEND_API_KEY, MAIL_FROM: 'codes@pricebird.org' };
   const domains = (status: string) => ({ data: [{ name: 'pricebird.org', status }] });
 
-  const cases: [string, { status: number; body?: unknown } | 'unreachable', boolean, RegExp][] = [
-    ['a working key and a verified domain', { status: 200, body: domains('verified') }, true, /accepted the key/],
-    ['a rejected key', { status: 401 }, false, /rejected the key/],
-    ['a key from another account', { status: 403 }, false, /rejected the key/],
-    ['a domain that is not on the account', { status: 200, body: { data: [] } }, false, /not a domain on this account/],
-    ['a domain still waiting on DNS', { status: 200, body: domains('pending') }, false, /rather than verified/],
-    ['Resend being down', 'unreachable', true, /could not be reached/],
+  // ok and canSend are separate columns on purpose. Conflating them hid the
+  // sign-in form from the operator while they were mid-fix on a temporary
+  // address that sent perfectly well - the exact lockout the page exists to
+  // prevent, caused by the page.
+  const cases: [string, { status: number; body?: unknown } | 'unreachable', boolean, boolean, RegExp][] = [
+    ['a working key and a verified domain', { status: 200, body: domains('verified') }, true, true, /accepted the key/],
+    ['a rejected key', { status: 401 }, false, false, /rejected the key/],
+    ['a key from another account', { status: 403 }, false, false, /rejected the key/],
+    ['a domain that is not on the account', { status: 200, body: { data: [] } }, false, false, /not a domain on this account/],
+    ['a domain still waiting on DNS', { status: 200, body: domains('pending') }, false, false, /rather than verified/],
+    ['Resend being down', 'unreachable', true, true, /could not be reached/],
   ];
 
-  for (const [name, reply, ok, expected] of cases) {
+  for (const [name, reply, ok, canSend, expected] of cases) {
     forgetMailVerdict();
     const verdict = await withEnv(env, () => withResend(reply, () => verifyMail(500)));
     assert.equal(verdict.ok, ok, `${name}: expected ok=${ok}, got ${verdict.ok} - "${verdict.detail}"`);
+    assert.equal(verdict.canSend, canSend, `${name}: expected canSend=${canSend} - "${verdict.detail}"`);
     assert.match(verdict.detail, expected, name);
     assert.ok(!verdict.detail.includes(FAKE.RESEND_API_KEY.slice(0, 10)), `${name}: health quoted the key`);
   }
@@ -272,7 +277,12 @@ async function healthTellsTheTruthAboutEmail(): Promise<void> {
     () => withResend({ status: 200, body: domains('verified') }, () => verifyMail(500)),
   );
   assert.equal(shared.ok, false, 'the shared test sender must not report green');
-  assert.match(shared.detail, /only delivers to your own Resend account/);
+  assert.equal(
+    shared.canSend,
+    true,
+    'the shared sender does send - treating it as broken locks out the one person it works for',
+  );
+  assert.match(shared.detail, /only to your own Resend/);
 
   // A display name around the address must not confuse the domain check.
   forgetMailVerdict();

@@ -119,7 +119,21 @@ export async function sendMail(mail: Mail): Promise<void> {
 }
 
 export interface MailVerdict {
+  /** Good enough to run a business on: any customer can receive a code. */
   ok: boolean;
+  /**
+   * Whether a send would actually go through at all.
+   *
+   * Separate from `ok` because they came apart badly. Resend's shared test
+   * address sends perfectly - just only to the account owner - so it is not
+   * good enough to launch on and health is right to call it red. But the
+   * sign-in page read that red as "sending is broken" and hid the form,
+   * locking out the one person it still worked for: the operator, mid-fix.
+   *
+   * A page that decides whether to offer sign-in must ask this one. Only
+   * health asks `ok`.
+   */
+  canSend: boolean;
   detail: string;
 }
 
@@ -145,7 +159,7 @@ export function forgetMailVerdict(): void {
 
 export async function verifyMail(timeoutMs = 4000): Promise<MailVerdict> {
   const problems = mailConfigProblems();
-  if (problems.length > 0) return { ok: false, detail: problems.join(' ') };
+  if (problems.length > 0) return { ok: false, canSend: false, detail: problems.join(' ') };
 
   const key = readSecret('RESEND_API_KEY')!;
   const from = readSecret('MAIL_FROM')!;
@@ -172,18 +186,22 @@ export async function verifyMail(timeoutMs = 4000): Promise<MailVerdict> {
     // Not a failure of configuration, so it must not read like one.
     // Deliberately not remembered: a network blip must not be repeated back
     // for half a minute after it has passed.
-    return { ok: true, detail: 'configured, but Resend could not be reached just now to confirm the key' };
+    // Unreachable says nothing about whether a send would work; assume it
+    // would, because refusing to offer sign-in over a failed status check is
+    // a worse error than letting somebody try.
+    return { ok: true, canSend: true, detail: 'configured, but Resend could not be reached just now to confirm the key' };
   }
 
   if (response.status === 401 || response.status === 403) {
     return remember({
       ok: false,
+      canSend: false,
       detail: 'Resend rejected the key. It was deleted, it was pasted incompletely, or it belongs to '
         + 'a different Resend account. Create a new key with sending access and paste it again.',
     });
   }
   if (!response.ok) {
-    return remember({ ok: false, detail: `Resend answered ${response.status} when asked to confirm the key.` });
+    return remember({ ok: false, canSend: false, detail: `Resend answered ${response.status} when asked to confirm the key.` });
   }
 
   // The sender's domain, checked against the ones Resend says are verified.
@@ -193,7 +211,7 @@ export async function verifyMail(timeoutMs = 4000): Promise<MailVerdict> {
     const body = await response.json() as { data?: { name?: string; status?: string }[] };
     verified = body.data ?? [];
   } catch {
-    return remember({ ok: true, detail: 'Resend accepted the key' });
+    return remember({ ok: true, canSend: true, detail: 'Resend accepted the key' });
   }
 
   // Resend's shared test sender. It works with no DNS at all, which makes it
@@ -203,8 +221,12 @@ export async function verifyMail(timeoutMs = 4000): Promise<MailVerdict> {
   if (domain === 'resend.dev') {
     return remember({
       ok: false,
-      detail: 'MAIL_FROM is Resend\'s shared test address. It only delivers to your own Resend account '
-        + 'address, so no customer can sign in. Verify pricebird.org in Resend and send from it.',
+      // It does send - that is the whole reason to reach for it while the
+      // real domain is still waiting on DNS. It just does not send to
+      // customers, which is why health stays red.
+      canSend: true,
+      detail: 'MAIL_FROM is Resend\'s shared test address. It does send, but only to your own Resend '
+        + 'account address, so no customer can sign in. Verify pricebird.org in Resend and send from it.',
     });
   }
 
@@ -212,6 +234,7 @@ export async function verifyMail(timeoutMs = 4000): Promise<MailVerdict> {
   if (!match) {
     return remember({
       ok: false,
+      canSend: false,
       detail: `Resend accepted the key, but ${domain || 'the MAIL_FROM domain'} is not a domain on this `
         + 'account. Sign-in codes cannot be sent from an address Resend does not own.',
     });
@@ -219,10 +242,11 @@ export async function verifyMail(timeoutMs = 4000): Promise<MailVerdict> {
   if (match.status !== 'verified') {
     return remember({
       ok: false,
+      canSend: false,
       detail: `Resend accepted the key, but the domain ${domain} is "${match.status}" rather than verified. `
         + 'Finish its DNS records in Resend before any code can be sent.',
     });
   }
 
-  return remember({ ok: true, detail: `Resend accepted the key and ${domain} is verified` });
+  return remember({ ok: true, canSend: true, detail: `Resend accepted the key and ${domain} is verified` });
 }

@@ -1,5 +1,6 @@
 import { PLATFORM_SPECS, type Platform } from './platforms';
 import { CONDITION_LABELS, renderFor, type Listing } from './schema';
+import { DEFAULT_PROFILE, type SellerProfile } from './profile';
 
 /**
  * A finished batch as a spreadsheet.
@@ -27,11 +28,14 @@ function cell(value: string | number | null): string {
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-export function listingsToCsv(rows: Array<{ listing: Listing; platform: Platform }>): string {
+export function listingsToCsv(
+  rows: Array<{ listing: Listing; platform: Platform }>,
+  profile: SellerProfile = DEFAULT_PROFILE,
+): string {
   const lines = [COLUMNS.join(',')];
 
   for (const { listing, platform } of rows) {
-    const copy = renderFor(listing, platform);
+    const copy = renderFor(listing, platform, profile);
     const { item, price } = listing;
 
     lines.push([

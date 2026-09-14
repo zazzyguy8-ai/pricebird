@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { PLATFORM_SPECS, PLATFORMS, type Platform } from '@/lib/listing/platforms';
 import { CONDITION_LABELS, renderFor, type Listing } from '@/lib/listing/schema';
+import { DEFAULT_PROFILE, type SellerProfile } from '@/lib/listing/profile';
 import type { Quota } from '@/lib/quota';
 
 /**
@@ -57,6 +58,7 @@ async function toShot(file: File): Promise<Shot> {
 export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signedIn: boolean }) {
   const [shots, setShots] = useState<Shot[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>(['ebay']);
+  const [profile, setProfile] = useState<SellerProfile>(DEFAULT_PROFILE);
   const [currency, setCurrency] = useState('USD');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
@@ -112,7 +114,9 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
       // used to land in the catch below and report a dropped connection, a
       // network story for what was actually a 500 with a cause in the logs.
       const raw = await response.text();
-      let payload: { error?: string; upgrade?: boolean; quota?: Quota; listing?: Listing } | null = null;
+      let payload: {
+        error?: string; upgrade?: boolean; quota?: Quota; listing?: Listing; profile?: SellerProfile;
+      } | null = null;
       try {
         payload = raw ? JSON.parse(raw) : null;
       } catch {
@@ -134,6 +138,9 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
       }
 
       setListing(payload.listing);
+      // The server decides what the house style did; the page never re-derives
+      // it, so what is copied here is byte-for-byte what the export contains.
+      if (payload.profile) setProfile(payload.profile);
       if (payload.quota) setQuota(payload.quota);
       setActive(platforms[0]);
     } catch {
@@ -248,6 +255,7 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
           <Result
             listing={listing}
             platforms={platforms}
+            profile={profile}
             active={platforms.includes(active) ? active : platforms[0]}
             onSelect={setActive}
           />
@@ -338,14 +346,15 @@ function Field({ label, value, hint }: { label: string; value: string; hint?: st
   );
 }
 
-function Result({ listing, platforms, active, onSelect }: {
+function Result({ listing, platforms, profile, active, onSelect }: {
   listing: Listing;
   platforms: Platform[];
+  profile: SellerProfile;
   active: Platform;
   onSelect: (platform: Platform) => void;
 }) {
   const spec = PLATFORM_SPECS[active];
-  const copy = useMemo(() => renderFor(listing, active), [listing, active]);
+  const copy = useMemo(() => renderFor(listing, active, profile), [listing, active, profile]);
   const { item, price } = listing;
 
   return (

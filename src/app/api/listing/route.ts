@@ -6,6 +6,7 @@ import { quotaFor } from '@/lib/quota';
 import { checkLimit, clientAddress } from '@/lib/rate-limit';
 import { generateListing, ListingFailure, ACCEPTED_IMAGE_TYPES, MAX_IMAGES } from '@/lib/listing/generate';
 import { PLATFORMS, type Platform } from '@/lib/listing/platforms';
+import { readProfile } from '@/lib/listing/profile';
 import { redact } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
@@ -73,6 +74,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'That request was not a photo set this can read.' }, { status: 400 });
   }
 
+  // The house style rides on every request without the seller re-typing it.
+  // readProfile never throws: a null column, a row from an older version or a
+  // value edited by hand all fall back to the defaults, because failing a
+  // paid listing over a formatting preference would be absurd.
+  const profile = readProfile(account.seller_profile);
+
   let listing;
   try {
     listing = await generateListing({
@@ -80,6 +87,7 @@ export async function POST(request: Request) {
       platforms: body.platforms as Platform[],
       currency: body.currency.toUpperCase(),
       notes: body.notes ?? null,
+      profile,
     });
   } catch (error) {
     if (error instanceof ListingFailure) {
@@ -98,7 +106,10 @@ export async function POST(request: Request) {
   const saved = await store.saveListing(account.id, body.platforms[0] as Platform, listing);
   const after = await quotaFor(account);
 
-  const response = NextResponse.json({ id: saved.id, listing, quota: after });
+  // The profile travels with the listing so the page renders exactly what the
+  // CSV export and the saved copy contain - one source of truth for the text
+  // the seller pastes, rather than a client guess at what the server applied.
+  const response = NextResponse.json({ id: saved.id, listing, quota: after, profile });
   if (setCookie) response.cookies.set(SESSION_COOKIE, setCookie, sessionCookieOptions);
   return response;
 }

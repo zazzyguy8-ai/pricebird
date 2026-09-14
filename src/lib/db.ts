@@ -35,6 +35,8 @@ export interface Account {
   referral_rewarded_at: string | null;
   /** Free listings earned by referring, on top of the plan's allowance. */
   bonus_listings: number;
+  /** The seller's house style. Null until they set one. */
+  seller_profile: unknown;
 }
 
 export interface SavedListing {
@@ -75,6 +77,8 @@ export interface Store {
   releaseRateLimit(key: string): Promise<void>;
   /** Which of the tables this app needs are missing from the live database. */
   missingTables(): Promise<string[]>;
+  /** Replaces the seller's house style. */
+  putSellerProfile(accountId: string, profile: unknown): Promise<void>;
   createAccount(email?: string | null, referredBy?: string | null): Promise<Account>;
   findAccountByReferralCode(code: string): Promise<Account | null>;
   countReferrals(accountId: string): Promise<number>;
@@ -113,6 +117,7 @@ function blankAccount(email: string | null, referredBy: string | null): Account 
     referred_by: referredBy,
     referral_rewarded_at: null,
     bonus_listings: 0,
+    seller_profile: null,
   };
 }
 
@@ -148,6 +153,13 @@ export class FileStore implements Store {
 
   async missingTables(): Promise<string[]> {
     return [];
+  }
+
+  async putSellerProfile(accountId: string, profile: unknown): Promise<void> {
+    const account = this.data.accounts.find((a) => a.id === accountId);
+    if (!account) return;
+    account.seller_profile = profile;
+    await this.flush();
   }
 
   async releaseRateLimit(key: string): Promise<void> {
@@ -373,7 +385,7 @@ export class PgStore implements Store {
        where table_schema = 'public' and table_name = 'accounts'`,
     );
     const have = new Set(columns.map((row) => row.column_name));
-    for (const column of ['referral_code', 'referred_by', 'referral_rewarded_at', 'bonus_listings']) {
+    for (const column of ['referral_code', 'referred_by', 'referral_rewarded_at', 'bonus_listings', 'seller_profile']) {
       if (!have.has(column)) missing.push(`accounts.${column}`);
     }
     return missing;
@@ -391,6 +403,13 @@ export class PgStore implements Store {
    * Guarded on reset_at so a hit cannot be returned into a window that has
    * already rolled over into somebody else's count, and floored at zero.
    */
+  async putSellerProfile(accountId: string, profile: unknown): Promise<void> {
+    await this.query(
+      'update accounts set seller_profile = $2::jsonb where id = $1',
+      [accountId, JSON.stringify(profile)],
+    );
+  }
+
   async releaseRateLimit(key: string): Promise<void> {
     await this.query(
       `update rate_limits set count = greatest(0, count - 1)

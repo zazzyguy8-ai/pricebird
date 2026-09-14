@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PLATFORMS, PLATFORM_SPECS, fitTitle, type Platform } from './platforms';
+import { DEFAULT_PROFILE, profileTail, type SellerProfile } from './profile';
 
 /**
  * What one photo turns into.
@@ -98,7 +99,11 @@ export type Listing = z.infer<typeof ListingSchema>;
  * most of them - the model is asked for them anyway because it is cheaper to
  * discard them than to run a second call when the seller switches to Depop.
  */
-export function renderFor(listing: Listing, platform: Platform): {
+export function renderFor(
+  listing: Listing,
+  platform: Platform,
+  profile: SellerProfile = DEFAULT_PROFILE,
+): {
   title: string;
   description: string;
   hashtags: string[];
@@ -122,9 +127,17 @@ export function renderFor(listing: Listing, platform: Platform): {
     ].filter(Boolean).join('\n\n')
     : [listing.description.short.trim(), tags.join(' ')].filter(Boolean).join('\n\n');
 
+  // The seller's own lines are fitted first and the generated body is made to
+  // fit around them, not the other way round. Truncation must never eat a
+  // promise the seller made to a buyer: a postage line that stops mid-word is
+  // worse than none, and it is the one part of the text they actually wrote.
+  const tail = profileTail(profile);
+  const room = spec.descriptionMax - (tail ? tail.length + 2 : 0);
+  const fitted = body.length <= room ? body : `${body.slice(0, Math.max(0, room - 1)).trimEnd()}…`;
+
   return {
     title: fitTitle(rawTitle, spec.titleMax),
-    description: body.length <= spec.descriptionMax ? body : `${body.slice(0, spec.descriptionMax - 1).trimEnd()}…`,
+    description: [fitted, tail].filter(Boolean).join('\n\n'),
     hashtags: tags,
     overflow: rawTitle.trim().length > spec.titleMax,
   };

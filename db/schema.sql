@@ -53,3 +53,8 @@ create table if not exists rate_limits (
 );
 
 create index if not exists rate_limits_reset_idx on rate_limits (reset_at);
+
+-- The seller's house style: tone, units, banned phrases, and the postage and
+-- returns lines appended verbatim to every description. Null until they set
+-- one, and every field has a default, so an absent profile is never an error.
+alter table accounts add column if not exists seller_profile jsonb;

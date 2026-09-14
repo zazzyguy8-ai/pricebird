@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { PLATFORM_SPECS, PLATFORMS, type Platform } from '@/lib/listing/platforms';
 import { listingsToCsv } from '@/lib/listing/csv';
 import { renderFor, type Listing } from '@/lib/listing/schema';
+import { DEFAULT_PROFILE, type SellerProfile } from '@/lib/listing/profile';
 import type { Quota } from '@/lib/quota';
 
 /**
@@ -68,6 +69,7 @@ async function toRow(file: File): Promise<Row> {
 export function Bulk({ quota: initialQuota }: { quota: Quota }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [platform, setPlatform] = useState<Platform>('vinted');
+  const [profile, setProfile] = useState<SellerProfile>(DEFAULT_PROFILE);
   const [currency, setCurrency] = useState('EUR');
   const [running, setRunning] = useState(false);
   const [quota, setQuota] = useState(initialQuota);
@@ -104,7 +106,7 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
       });
 
       const raw = await response.text();
-      let payload: { error?: string; listing?: Listing; quota?: Quota } | null = null;
+      let payload: { error?: string; listing?: Listing; quota?: Quota; profile?: SellerProfile } | null = null;
       try {
         payload = raw ? JSON.parse(raw) : null;
       } catch {
@@ -121,6 +123,9 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
       }
 
       patch(row.id, { status: 'done', listing: payload.listing });
+      // Twenty items share one house style, so the last answer is as good as
+      // the first - and the export must use the same one the rows showed.
+      if (payload.profile) setProfile(payload.profile);
       if (payload.quota) setQuota(payload.quota);
     } catch {
       patch(row.id, { status: 'failed', error: 'The connection dropped on this one.' });
@@ -150,7 +155,7 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
 
   function download() {
     const finished = rows.filter((row): row is Row & { listing: Listing } => row.listing !== null);
-    const csv = listingsToCsv(finished.map(({ listing }) => ({ listing, platform })));
+    const csv = listingsToCsv(finished.map(({ listing }) => ({ listing, platform })), profile);
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
@@ -261,16 +266,16 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
 
       {rows.length > 0 && (
         <div className="stack" style={{ gap: 8 }}>
-          {rows.map((row) => <BulkRow key={row.id} row={row} platform={platform} />)}
+          {rows.map((row) => <BulkRow key={row.id} row={row} platform={platform} profile={profile} />)}
         </div>
       )}
     </div>
   );
 }
 
-function BulkRow({ row, platform }: { row: Row; platform: Platform }) {
+function BulkRow({ row, platform, profile }: { row: Row; platform: Platform; profile: SellerProfile }) {
   const [open, setOpen] = useState(false);
-  const copy = row.listing ? renderFor(row.listing, platform) : null;
+  const copy = row.listing ? renderFor(row.listing, platform, profile) : null;
 
   return (
     <div className="card card-tight stack" style={{ gap: 10 }}>

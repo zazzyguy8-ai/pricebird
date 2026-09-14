@@ -1,5 +1,6 @@
 import { PLATFORM_SPECS, type Platform } from './platforms';
 import { CONDITIONS } from './schema';
+import { profileRules, type SellerProfile } from './profile';
 
 export const LISTING_SYSTEM = `You write second-hand marketplace listings from photographs.
 
@@ -88,6 +89,7 @@ export function listingPrompt(input: {
   currency: string;
   notes: string | null;
   photoCount: number;
+  profile?: SellerProfile;
 }): string {
   const platformLines = input.platforms
     .map((p) => {
@@ -124,5 +126,6 @@ price and that the photo cannot answer: exact measurements, the year bought,
 whether the original box exists, whether it has been washed or serviced.
 
 photo_tips is at most three concrete fixes for the photos you were given - the
-missing shot, the light, the background. Skip it if the photos are fine.`;
+missing shot, the light, the background. Skip it if the photos are fine.
+${input.profile ? `\n${profileRules(input.profile)}` : ''}`;
 }

@@ -8,6 +8,8 @@ import { getStore } from '@/lib/db';
 import { PLATFORM_SPECS } from '@/lib/listing/platforms';
 import { quotaFor } from '@/lib/quota';
 import { ReferralCard } from '@/components/referral-card';
+import { HouseStyle } from '@/components/house-style';
+import { readProfile } from '@/lib/listing/profile';
 import { referralLink } from '@/lib/referrals';
 
 export const metadata: Metadata = { title: 'Account' };
@@ -122,6 +124,8 @@ export default async function AccountPage() {
                 </div>
               )}
           </div>
+
+          <HouseStyle initial={readProfile(account.seller_profile)} />
         </div>
       </main>
       <Footer />

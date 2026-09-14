@@ -5,6 +5,7 @@ import { redact, readSecret } from '@/lib/secrets';
 import { PLATFORMS, type Platform } from './platforms';
 import { ListingSchema, type Listing } from './schema';
 import { LISTING_SYSTEM, listingPrompt } from './prompts';
+import type { SellerProfile } from './profile';
 
 /** Formats Claude accepts as image input. Anything else is rejected at the
  *  door with a message a phone user can act on, not a 400 from the API. */
@@ -27,6 +28,8 @@ export interface GenerateInput {
   platforms: Platform[];
   currency: string;
   notes?: string | null;
+  /** The seller's house style. Absent for anonymous first-time use. */
+  profile?: SellerProfile;
 }
 
 /**
@@ -313,6 +316,7 @@ export async function generateListing(input: GenerateInput, options: GenerateOpt
         currency: input.currency,
         notes: input.notes?.trim() || null,
         photoCount: input.photos.length,
+        profile: input.profile,
       }),
     },
   ];

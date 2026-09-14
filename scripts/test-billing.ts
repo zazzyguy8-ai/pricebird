@@ -28,6 +28,7 @@ const BASE: Account = {
   referred_by: null,
   referral_rewarded_at: null,
   bonus_listings: 0,
+  seller_profile: null,
 };
 
 const URL = 'https://pricebird.org';

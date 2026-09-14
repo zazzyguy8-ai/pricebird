@@ -9,8 +9,9 @@
  */
 import assert from 'node:assert/strict';
 import { generateListing, ListingFailure } from '../src/lib/listing/generate';
-import { fitTitle, PLATFORM_SPECS } from '../src/lib/listing/platforms';
+import { fitTitle, PLATFORM_SPECS, PLATFORMS } from '../src/lib/listing/platforms';
 import { renderFor, ListingSchema, type Listing } from '../src/lib/listing/schema';
+import { DEFAULT_PROFILE, SellerProfileSchema, profileRules, readProfile } from '../src/lib/listing/profile';
 import { listingsToCsv } from '../src/lib/listing/csv';
 
 const GOOD_LISTING: Listing = {
@@ -314,6 +315,97 @@ function csvSurvivesRealContent(): void {
   console.log('  ✓ the export survives commas, quotes and newlines in real listings');
 }
 
+/**
+ * The house style, which is the whole argument for a subscription.
+ *
+ * Anyone can paste a photo into a chat window and get a listing. What they
+ * cannot get is the same listing in their words, with their postage terms on
+ * the end, forty times running without retyping any of it. So these are the
+ * properties that have to hold every time - especially the last one, which is
+ * the one a character limit would quietly break.
+ */
+function theHouseStyleSurvivesEveryLimit(): void {
+  const profile = SellerProfileSchema.parse({
+    postage_line: 'Posted within 2 working days, tracked, from Slovakia.',
+    returns_line: 'Returns accepted within 14 days, buyer pays postage.',
+    tone: 'minimal',
+    never_say: ['vintage'],
+  });
+
+  // The seller's own words, verbatim and complete, on every marketplace -
+  // including the ones with the tightest description limits.
+  for (const platform of PLATFORMS) {
+    const rendered = renderFor(GOOD_LISTING, platform, profile);
+    assert.ok(
+      rendered.description.includes(profile.postage_line!),
+      `${platform}: the postage line was altered or cut`,
+    );
+    assert.ok(
+      rendered.description.includes(profile.returns_line!),
+      `${platform}: the returns line was altered or cut`,
+    );
+    assert.ok(
+      rendered.description.length <= PLATFORM_SPECS[platform].descriptionMax,
+      `${platform}: the description still has to fit`,
+    );
+  }
+
+  // And when something genuinely has to give, it is the generated prose and
+  // never the seller's own words. Built past the schema's own cap on purpose:
+  // the limits are generous enough that this does not happen today, which is
+  // exactly why it needs a test rather than a hope.
+  const windy: Listing = {
+    ...GOOD_LISTING,
+    description: { short: 'x'.repeat(PLATFORM_SPECS.depop.descriptionMax + 200), long: 'y'.repeat(900) },
+  };
+  const squeezed = renderFor(windy, 'depop', profile);
+  assert.ok(squeezed.description.includes(profile.postage_line!), 'the promise outranks the prose');
+  assert.ok(squeezed.description.includes(profile.returns_line!), 'both promises outrank the prose');
+  assert.ok(squeezed.description.includes('…'), 'a truncated body must say so');
+  assert.ok(
+    squeezed.description.length <= PLATFORM_SPECS.depop.descriptionMax,
+    'reserving room for the tail must not push the whole thing over the limit',
+  );
+
+  // No profile set is the same text as before this feature existed.
+  const plain = renderFor(GOOD_LISTING, 'ebay');
+  assert.equal(plain.description, renderFor(GOOD_LISTING, 'ebay', DEFAULT_PROFILE).description);
+  assert.ok(!plain.description.endsWith('\n'), 'an empty tail must not leave a dangling blank line');
+
+  console.log('  ✓ the seller\'s own lines are never reworded and never cut off');
+}
+
+function theProfileNeverBreaksAListing(): void {
+  // Anything at all can be in that column: null from a fresh account, a row
+  // written before this feature shipped, a value someone edited by hand. None
+  // of it may cost somebody a listing they are paying for.
+  for (const junk of [null, undefined, {}, [], 'nonsense', 42, { tone: 'shouty' }, { never_say: 'no' }]) {
+    const profile = readProfile(junk);
+    assert.equal(typeof profile.tone, 'string');
+    assert.ok(Array.isArray(profile.never_say));
+    assert.doesNotThrow(() => renderFor(GOOD_LISTING, 'depop', profile));
+  }
+
+  // Guidance reaches the model; commitments deliberately do not. A promise to
+  // a buyer must not be paraphrased, so it is never shown to something that
+  // could paraphrase it.
+  const profile = SellerProfileSchema.parse({
+    postage_line: 'Posted within 2 working days.',
+    returns_line: 'No returns, sorry.',
+    never_say: ['bundle'],
+    ships_from: 'Slovakia',
+    units: 'in',
+  });
+  const rules = profileRules(profile);
+  assert.ok(rules.includes('bundle'), 'a banned phrase must reach the model');
+  assert.ok(rules.includes('Slovakia'), 'where it ships from is a fact, and useful');
+  assert.ok(rules.includes('inches'), 'the unit choice must reach the model');
+  assert.ok(!rules.includes('Posted within'), 'the postage line must never be paraphrasable');
+  assert.ok(!rules.includes('No returns'), 'the returns line must never be paraphrasable');
+
+  console.log('  ✓ a broken profile costs nothing, and promises are never paraphrased');
+}
+
 async function main(): Promise<void> {
   console.log('listing');
   await wiring();
@@ -325,6 +417,8 @@ async function main(): Promise<void> {
   platformLimits();
   descriptionLength();
   csvSurvivesRealContent();
+  theHouseStyleSurvivesEveryLimit();
+  theProfileNeverBreaksAListing();
   console.log('all listing tests passed\n');
 }
 

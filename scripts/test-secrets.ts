@@ -251,8 +251,11 @@ async function healthTellsTheTruthAboutEmail(): Promise<void> {
   // prevent, caused by the page.
   const cases: [string, { status: number; body?: unknown } | 'unreachable', boolean, boolean, RegExp][] = [
     ['a working key and a verified domain', { status: 200, body: domains('verified') }, true, true, /accepted the key/],
-    ['a rejected key', { status: 401 }, false, false, /rejected the key/],
-    ['a key from another account', { status: 403 }, false, false, /rejected the key/],
+    // A sending-only key is REFUSED by /domains and is completely healthy.
+    // Reading that refusal as a dead key is what put "sign-in codes are down"
+    // in front of a seller while every send was returning 200.
+    ['a key scoped to sending only', { status: 401, body: { message: 'This API key is restricted to sending' } }, true, true, /sending access only/],
+    ['a refusal that names no reason', { status: 403, body: { message: 'forbidden' } }, true, true, /cannot confirm itself/],
     ['a domain that is not on the account', { status: 200, body: { data: [] } }, false, false, /not a domain on this account/],
     ['a domain still waiting on DNS', { status: 200, body: domains('pending') }, false, false, /rather than verified/],
     ['Resend being down', 'unreachable', true, true, /could not be reached/],

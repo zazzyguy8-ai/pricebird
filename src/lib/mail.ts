@@ -193,11 +193,26 @@ export async function verifyMail(timeoutMs = 4000): Promise<MailVerdict> {
   }
 
   if (response.status === 401 || response.status === 403) {
+    // A key with "Sending access" can send all day and is not allowed to list
+    // domains. Asking it to, then reporting the refusal as a rejected key,
+    // turned a perfectly working key into "sign-in codes are down" - the
+    // check inventing the outage it was built to detect.
+    //
+    // So a refusal here is inconclusive, not damning. When the body says the
+    // key is restricted, that is a healthy key doing what it was scoped to
+    // do. When it says anything else it may be genuinely bad, and it is still
+    // reported as sendable: only an actual send can settle that, and refusing
+    // to let anyone try is the more expensive mistake.
+    const body = await response.text().catch(() => '');
+    const restricted = /restrict|permission|not allowed|scope|access/i.test(body);
     return remember({
-      ok: false,
-      canSend: false,
-      detail: 'Resend rejected the key. It was deleted, it was pasted incompletely, or it belongs to '
-        + 'a different Resend account. Create a new key with sending access and paste it again.',
+      ok: true,
+      canSend: true,
+      detail: restricted
+        ? 'Resend key present, with sending access only - so the domain cannot be confirmed from '
+          + 'here. Check Domains in Resend shows your sending domain as verified.'
+        : 'Resend key present, but this key cannot confirm itself from here. If codes are not '
+          + 'arriving, check Logs in Resend - a send shows there whether it worked or not.',
     });
   }
   if (!response.ok) {

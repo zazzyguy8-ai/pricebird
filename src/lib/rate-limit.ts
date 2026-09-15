@@ -25,6 +25,19 @@ export const LIMITS = {
   codesPerEmail: { limit: 4, windowSeconds: 60 * 60 },
   /** And per IP, which is what stops the same abuse spread over addresses. */
   codesPerIp: { limit: 12, windowSeconds: 60 * 60 },
+  /**
+   * Guesses at a code, per address.
+   *
+   * The stored record already locks after five wrong attempts, which bounds
+   * brute force against any one code. What it does not bound is the traffic:
+   * without this, /api/auth/verify will read the database for every guess
+   * from anywhere, for any address, forever. That is not a way into an
+   * account - it is a way to spend the database on somebody's script.
+   *
+   * Thirty an hour is far above a person mistyping a six-digit code and far
+   * below anything automated.
+   */
+  codeGuessesPerIp: { limit: 30, windowSeconds: 60 * 60 },
 } as const;
 
 /**

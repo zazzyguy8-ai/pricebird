@@ -3,6 +3,8 @@ import { z } from 'zod';
 import {
   SESSION_COOKIE, accountForRequest, checkCode, claimEmail, issueSession, sessionCookieOptions,
 } from '@/lib/auth';
+import { checkLimit, clientAddress, releaseLimit } from '@/lib/rate-limit';
+import { redact } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
 
@@ -23,8 +25,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Enter the six-digit code from the email.' }, { status: 400 });
   }
 
-  const check = await checkCode(body.email, body.code);
+  // The stored record locks after five wrong attempts, so no single code can
+  // be ground down. This bounds the traffic instead: without it every guess
+  // from anywhere, for any address, costs a database read.
+  const address = clientAddress(request);
+  let check: Awaited<ReturnType<typeof checkCode>>;
+  try {
+    const limit = await checkLimit(
+      'codeGuessesPerIp',
+      address,
+      'Too many attempts from this connection. Wait an hour, or ask for a fresh code.',
+    );
+    if (!limit.ok) {
+      return NextResponse.json(
+        { error: limit.message },
+        { status: 429, headers: { 'retry-after': String(limit.retryAfter) } },
+      );
+    }
+
+    check = await checkCode(body.email, body.code);
+  } catch (error) {
+    const message = redact(error instanceof Error ? error.message : 'The sign-in store is unavailable.');
+    console.error(`[auth] ${message}`);
+    return NextResponse.json({ error: `Sign-in is not available: ${message}` }, { status: 503 });
+  }
+
   if (!check.ok) return NextResponse.json({ error: REASONS[check.reason] }, { status: 401 });
+
+  // A correct code costs nothing: the hit is handed back, so somebody signing
+  // in from an office or a phone network is not billed for their neighbours.
+  await releaseLimit('codeGuessesPerIp', address).catch(() => {});
 
   // The visitor may already be carrying an anonymous account with listings on
   // it; claimEmail decides whether that account gets the email or whether an

@@ -44,7 +44,7 @@ export async function quotaFor(account: Account): Promise<Quota> {
     message: remaining > 0
       ? ''
       : account.plan === 'free'
-        ? `You have used all ${limit} free listings. Pro is ${PLANS.pro.priceLabel} and lifts the cap.`
+        ? `That is all ${limit} free listings used.`
         : `You have hit ${spec.limit} listings this month, which is the fair-use cap. Reply to your receipt and we will raise it.`,
   };
 }

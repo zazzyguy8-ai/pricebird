@@ -37,7 +37,34 @@ export function BirdMark({ size = 26 }: { size?: number }) {
   );
 }
 
-export function Nav({ cta = 'Start free' }: { cta?: string }) {
+/**
+ * The bar at the top, and the two things it was getting wrong.
+ *
+ * The button said "Pricing" on three pages and went to /app - a label that
+ * describes somewhere it does not take you, which is the one thing a button
+ * may never do. It also sat immediately beside the "Pricing" link, so those
+ * pages showed the word twice in a row and read as a mistake, which it was.
+ *
+ * And nothing said where you already were. On a five-item bar that is a small
+ * thing; it is also the difference between a site that was assembled and one
+ * that was looked at.
+ *
+ * The destination now travels with the label, and the current page is marked
+ * and dropped from the list rather than offered as somewhere to go.
+ */
+const NAV_LINKS: [string, string][] = [
+  ['/relist', 'Fix a listing'],
+  ['/bulk', 'Bulk'],
+  ['/pricing', 'Pricing'],
+  ['/signin', 'Sign in'],
+];
+
+export function Nav({ cta = 'Start free', ctaHref = '/app', current }: {
+  cta?: string;
+  ctaHref?: string;
+  /** The path this page is on, so its own link is not offered back to it. */
+  current?: string;
+}) {
   return (
     <header className="nav">
       <div className="shell nav-inner">
@@ -46,11 +73,16 @@ export function Nav({ cta = 'Start free' }: { cta?: string }) {
           Pricebird
         </Link>
         <nav className="nav-links">
-          <Link href="/relist" className="hide-sm">Fix a listing</Link>
-          <Link href="/bulk" className="hide-sm">Bulk</Link>
-          <Link href="/pricing" className="hide-sm">Pricing</Link>
-          <Link href="/signin" className="hide-sm">Sign in</Link>
-          <Link href="/app" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: 14 }}>{cta}</Link>
+          {NAV_LINKS.filter(([href]) => href !== current && href !== ctaHref).map(([href, label]) => (
+            <Link key={href} href={href} className="hide-sm">{label}</Link>
+          ))}
+          <Link
+            href={ctaHref}
+            className="btn btn-primary"
+            style={{ padding: '8px 16px', fontSize: 14 }}
+          >
+            {cta}
+          </Link>
         </nav>
       </div>
     </header>

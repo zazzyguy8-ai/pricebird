@@ -64,7 +64,7 @@ export default async function AccountPage() {
 
   return (
     <>
-      <Nav cta="Write a listing" />
+      <Nav cta="Write a listing" current="/account" />
       <main className="shell" style={{ paddingBlock: 40 }}>
         <div className="stack" style={{ gap: 22 }}>
           <div className="spread">

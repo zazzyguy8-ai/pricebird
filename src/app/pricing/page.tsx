@@ -60,7 +60,7 @@ export default function PricingPage() {
 
   return (
     <>
-      <Nav cta="Start free" />
+      <Nav cta="Start free" current="/pricing" />
       <main>
         <section>
           <div className="shell stack" style={{ gap: 34 }}>

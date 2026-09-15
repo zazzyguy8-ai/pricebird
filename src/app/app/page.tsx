@@ -26,7 +26,7 @@ export default async function AppPage() {
 
   return (
     <>
-      <Nav cta="Pricing" />
+      <Nav cta="Go Pro" ctaHref="/pricing" current="/app" />
       <main className="shell" style={{ paddingBlock: 28 }}>
         <div className="stack" style={{ gap: 20 }}>
           <div className="stack" style={{ gap: 6 }}>

@@ -20,7 +20,7 @@ export default async function BulkPage() {
 
   return (
     <>
-      <Nav cta="Pricing" />
+      <Nav cta="Go Pro" ctaHref="/pricing" current="/bulk" />
       <main className="shell" style={{ paddingBlock: 28, maxWidth: 720 }}>
         <div className="stack" style={{ gap: 20 }}>
           <div className="stack" style={{ gap: 6 }}>

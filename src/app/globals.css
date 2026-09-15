@@ -158,6 +158,10 @@ img { max-width: 100%; display: block; }
 
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
+  /* inline-flex is not enough inside a column flex parent: the default
+     align-items:stretch pulls it to the full width of the column, which is
+     how the hero badge ended up as a full-width bar. */
+  align-self: start;
   border: 1px solid var(--line-bright);
   border-radius: 999px;
   padding: 4px 11px;
@@ -184,7 +188,7 @@ p { margin: 0; }
 .mono { font-family: var(--mono); }
 .accent { color: var(--accent-dim); }
 
-section { padding-block: clamp(56px, 9vw, 100px); }
+section { padding-block: clamp(48px, 7vw, 82px); }
 .section-tight { padding-block: clamp(36px, 6vw, 60px); }
 
 .eyebrow {
@@ -290,7 +294,16 @@ section { padding-block: clamp(56px, 9vw, 100px); }
 
 .field { display: flex; flex-direction: column; gap: 6px; }
 
-label.field-label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); }
+/*
+ * Not `label.field-label`.
+ *
+ * A group of radio-style buttons has no single control to point a <label> at,
+ * so those captions are spans - and the element-qualified selector skipped
+ * them silently. "Marketplace" rendered as unstyled body text beside a
+ * correctly styled "Currency", on both the listing page and the bulk page,
+ * which looked like two different designers had been in.
+ */
+.field-label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); }
 
 input[type='text'], input[type='email'], textarea, select {
   width: 100%;
@@ -437,7 +450,7 @@ p, li { text-wrap: pretty; }
  * deliberately dull and the right one carries the brand colour, so the
  * difference reads before a single word does.
  */
-.compare { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; align-items: start; }
+.compare { display: grid; gap: 14px; grid-template-columns: 1fr 1fr; align-items: stretch; }
 @media (max-width: 760px) { .compare { grid-template-columns: 1fr; } }
 
 .compare-pane {

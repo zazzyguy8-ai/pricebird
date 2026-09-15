@@ -30,7 +30,7 @@ export default async function SignInPage() {
 
   return (
     <>
-      <Nav cta="Start free" />
+      <Nav cta="Start free" current="/signin" />
       <main className="shell" style={{ paddingBlock: 56 }}>
         <div className="stack" style={{ gap: 20, maxWidth: 480 }}>
           <div className="stack" style={{ gap: 8 }}>

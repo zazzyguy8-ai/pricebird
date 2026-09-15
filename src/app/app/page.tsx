@@ -5,7 +5,13 @@ import { currentAccount } from '@/lib/auth';
 import { PLANS } from '@/lib/billing/plans';
 import { quotaFor, type Quota } from '@/lib/quota';
 
-export const metadata: Metadata = { title: 'Write a listing' };
+export const metadata: Metadata = {
+  title: 'Write a listing',
+  description:
+    'Photograph anything you are selling and get a finished listing back - a title sized for each '
+    + 'marketplace, a description that names the flaws, the search keywords and a price range. '
+    + 'Five free, no account.',
+};
 export const dynamic = 'force-dynamic';
 
 /** A visitor with no account yet has spent nothing; the row is created by

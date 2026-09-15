@@ -13,7 +13,10 @@ import { readProfile } from '@/lib/listing/profile';
 import { verifyMail } from '@/lib/mail';
 import { referralLink } from '@/lib/referrals';
 
-export const metadata: Metadata = { title: 'Account' };
+export const metadata: Metadata = {
+  title: 'Account',
+  description: 'Your plan, your house style and the listings you have made.',
+};
 export const dynamic = 'force-dynamic';
 
 export default async function AccountPage() {

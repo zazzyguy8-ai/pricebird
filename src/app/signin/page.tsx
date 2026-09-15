@@ -3,7 +3,10 @@ import { Footer, Nav } from '@/components/chrome';
 import { SignInForm } from '@/components/signin-form';
 import { verifyMail } from '@/lib/mail';
 
-export const metadata: Metadata = { title: 'Sign in' };
+export const metadata: Metadata = {
+  title: 'Sign in',
+  description: 'No password. Put in your email and get a six-digit code.',
+};
 export const dynamic = 'force-dynamic';
 
 /**

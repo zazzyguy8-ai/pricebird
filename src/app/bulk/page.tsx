@@ -6,7 +6,12 @@ import { currentAccount } from '@/lib/auth';
 import { PLANS } from '@/lib/billing/plans';
 import { quotaFor, type Quota } from '@/lib/quota';
 
-export const metadata: Metadata = { title: 'The whole pile' };
+export const metadata: Metadata = {
+  title: 'The whole pile',
+  description:
+    'Photograph everything you are selling, drop it in together, and come back to finished listings '
+    + 'and a CSV your marketplace can bulk upload. Twenty items at a time.',
+};
 export const dynamic = 'force-dynamic';
 
 const UNTOUCHED: Quota = {

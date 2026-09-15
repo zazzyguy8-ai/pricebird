@@ -204,6 +204,14 @@ section { padding-block: clamp(48px, 7vw, 82px); }
 .hero {
   padding-block: clamp(52px, 10vw, 110px) clamp(40px, 7vw, 70px);
   position: relative;
+  /*
+   * `clip`, not `hidden`. The glow behind this section is deliberately wider
+   * than the viewport so its edges never show, and that made the whole
+   * document scroll sideways - on a phone especially, where a stray
+   * horizontal scroll feels like the page is broken. `clip` cuts the overflow
+   * without turning this into a scroll container, which `hidden` would.
+   */
+  overflow: clip;
 }
 
 .hero::before {
@@ -532,3 +540,75 @@ p, li { text-wrap: pretty; }
   background: linear-gradient(180deg, transparent 58%, color-mix(in srgb, var(--accent) 46%, transparent) 58%);
   padding-inline: 2px;
 }
+
+/* -------------------------------- motion -------------------------------- */
+
+/*
+ * Things arrive as you reach them.
+ *
+ * Done with a scroll-driven animation rather than an IntersectionObserver, so
+ * there is no JavaScript, nothing to hydrate and nothing that can leave the
+ * page blank while a bundle loads. The whole block sits inside @supports:
+ * where scroll timelines are missing the rules never apply at all, and the
+ * content is simply there, which is the correct fallback and needs no code.
+ *
+ * The range is deliberately short - by the time a block is 30% into view it
+ * has finished arriving. A reveal that is still animating while you read it
+ * is a reveal that is in the way.
+ */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 28%;
+    }
+  }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/*
+ * Cards that answer the cursor.
+ *
+ * Only the ones that are links - a card that lifts under the mouse and then
+ * does nothing when clicked is a promise the page does not keep.
+ */
+a.card { transition: transform .18s ease, border-color .18s ease, background .18s ease; }
+a.card:hover { transform: translateY(-2px); border-color: var(--line-bright); }
+a.card:active { transform: translateY(0); }
+
+/*
+ * Press feedback.
+ *
+ * On a phone there is no hover, so the only way a button can acknowledge a
+ * tap before the work starts is to move. 40ms of it, which is felt rather
+ * than seen.
+ */
+.btn, .choice, .btn-quiet { transition: transform .04s ease, background .16s ease, border-color .16s ease; }
+.btn:active, .choice:active, .btn-quiet:active { transform: scale(.985); }
+
+/*
+ * A glow behind the hero, and nothing else.
+ *
+ * One soft wash of brand colour at the top of the page, sized in viewport
+ * units so it scales rather than tiles. It is under the content and cannot be
+ * clicked through by accident.
+ */
+.hero::before {
+  content: '';
+  position: absolute; inset: -18% -10% auto -10%; height: 78vh;
+  background: radial-gradient(58% 52% at 28% 30%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 72%);
+  pointer-events: none;
+  /*
+   * Zero, not minus one. A negative index sends it behind the section's own
+   * background and, with no background on this section, behind the body's -
+   * where it is invisible. So it sits at the bottom of the hero's own stack
+   * and the content is lifted one step above it.
+   */
+  z-index: 0;
+}
+.hero > * { position: relative; z-index: 1; }

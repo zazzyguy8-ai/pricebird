@@ -150,7 +150,7 @@ export default function Home() {
         </section>
 
         <section className="section-tight">
-          <div className="shell stack" style={{ gap: 12 }}>
+          <div className="reveal shell stack" style={{ gap: 12 }}>
             <span className="eyebrow">Writes for</span>
             <div className="chip-list">
               {['eBay', 'Vinted', 'Depop', 'Facebook Marketplace', 'Poshmark', 'Mercari', 'Etsy'].map((p) => (
@@ -161,7 +161,7 @@ export default function Home() {
         </section>
 
         <section>
-          <div className="shell stack" style={{ gap: 28 }}>
+          <div className="reveal shell stack" style={{ gap: 28 }}>
             <div className="stack" style={{ gap: 10, maxWidth: 620 }}>
               <span className="eyebrow">Why bother</span>
               <h2>Listing is not the hard part. Listing badly is.</h2>
@@ -178,7 +178,7 @@ export default function Home() {
         </section>
 
         <section>
-          <div className="shell stack" style={{ gap: 24 }}>
+          <div className="reveal shell stack" style={{ gap: 24 }}>
             <div className="stack" style={{ gap: 10, maxWidth: 640 }}>
               <span className="eyebrow">The same jacket, listed twice</span>
               <h2>
@@ -228,7 +228,7 @@ export default function Home() {
         </section>
 
         <section style={{ background: 'var(--surface)', borderBlock: '1px solid var(--line)' }}>
-          <div className="shell stack" style={{ gap: 28 }}>
+          <div className="reveal shell stack" style={{ gap: 28 }}>
             <div className="stack" style={{ gap: 10, maxWidth: 620 }}>
               <span className="eyebrow">How it works</span>
               <h2>Three steps, one of which is taking a photo.</h2>
@@ -246,7 +246,7 @@ export default function Home() {
         </section>
 
         <section>
-          <div className="shell stack" style={{ gap: 28 }}>
+          <div className="reveal shell stack" style={{ gap: 28 }}>
             <div className="stack" style={{ gap: 10, maxWidth: 620 }}>
               <span className="eyebrow">Three ways in</span>
               <h2>One thing, the whole pile, or the ones already sitting there.</h2>
@@ -270,7 +270,7 @@ export default function Home() {
         </section>
 
         <section>
-          <div className="shell">
+          <div className="reveal shell">
             <div className="grid-2" style={{ gap: 40, alignItems: 'center' }}>
               <div className="stack" style={{ gap: 18 }}>
                 <span className="eyebrow">Or the whole pile</span>
@@ -312,7 +312,7 @@ export default function Home() {
         </section>
 
         <section>
-          <div className="shell stack" style={{ gap: 26 }}>
+          <div className="reveal shell stack" style={{ gap: 26 }}>
             <div className="stack" style={{ gap: 10, maxWidth: 640 }}>
               <span className="eyebrow">The honest part</span>
               <h2>Three things it refuses to do.</h2>
@@ -332,7 +332,7 @@ export default function Home() {
         </section>
 
         <section style={{ background: 'var(--surface)', borderBlock: '1px solid var(--line)' }}>
-          <div className="shell stack" style={{ gap: 20, alignItems: 'center', textAlign: 'center' }}>
+          <div className="reveal shell stack" style={{ gap: 20, alignItems: 'center', textAlign: 'center' }}>
             <span className="eyebrow">Pricing</span>
             <h2>{PLANS.pro.priceLabel.replace(' / month', '')} a month. One extra sale covers the year.</h2>
             <p className="lede" style={{ maxWidth: 560 }}>
@@ -346,7 +346,7 @@ export default function Home() {
         </section>
 
         <section>
-          <div className="shell" style={{ maxWidth: 760 }}>
+          <div className="reveal shell" style={{ maxWidth: 760 }}>
             <h2 style={{ marginBottom: 24 }}>Questions</h2>
             {FAQ.map(([q, a]) => (
               <div key={q} className="faq">

@@ -94,6 +94,9 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
     }
   }, []);
 
+  // How many of the queued photos the allowance cannot cover.
+  const overQuota = quota.plan === 'free' ? Math.max(0, rows.length - quota.remaining) : 0;
+
   const patch = (id: string, change: Partial<Row>) =>
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...change } : row)));
 
@@ -232,6 +235,27 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
           </select>
         </div>
       </div>
+
+      {/*
+        * Said before the button, not discovered after it.
+        *
+        * A free account has five listings. Nothing stopped somebody dropping
+        * twenty photos in and pressing go: the first five would be written
+        * and the other fifteen would come back refused, one red row at a
+        * time, having spent two minutes of their evening finding that out.
+        * On somebody's first visit that reads as a broken product rather than
+        * a plan they have outgrown.
+        */}
+      {overQuota > 0 && (
+        <div className="note note-warn small">
+          {quota.remaining === 0
+            ? `No free listings left, so none of these ${rows.length} will be written.`
+            : `${quota.remaining} free ${quota.remaining === 1 ? 'listing' : 'listings'} left and `
+              + `${rows.length} photos here — the first ${quota.remaining} will be written and the `
+              + `other ${overQuota} will not.`}{' '}
+          <Link href="/pricing" className="accent">Pro writes the whole pile.</Link>
+        </div>
+      )}
 
       <div className="row">
         <button

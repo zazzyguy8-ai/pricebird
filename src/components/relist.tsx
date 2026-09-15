@@ -6,7 +6,7 @@ import { PLATFORM_SPECS, PLATFORMS, type Platform } from '@/lib/listing/platform
 import { DEFAULT_PROFILE, type SellerProfile } from '@/lib/listing/profile';
 import type { Listing } from '@/lib/listing/schema';
 import type { Quota } from '@/lib/quota';
-import { CURRENCIES, Pending, QuotaBar, Result } from '@/components/studio';
+import { CURRENCIES, Pending, QuotaBar, Result, useRevealOnChange } from '@/components/studio';
 
 /**
  * The listings you already have, and why they are sitting there.
@@ -50,6 +50,9 @@ export function Relist({ quota: initialQuota, signedIn }: { quota: Quota; signed
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsUpgrade, setNeedsUpgrade] = useState(false);
+
+  // Same reason as the listing page: on a phone the answer is below the fold.
+  const output = useRevealOnChange(busy || Boolean(listing));
 
   const ready = title.trim().length >= 3 && description.trim().length >= 20;
 
@@ -179,7 +182,7 @@ export function Relist({ quota: initialQuota, signedIn }: { quota: Quota; signed
         <QuotaBar quota={quota} signedIn={signedIn} />
       </div>
 
-      <div>
+      <div ref={output}>
         {busy && !listing && (
           <Pending
             platforms={platforms.length}

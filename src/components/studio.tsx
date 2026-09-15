@@ -55,6 +55,38 @@ async function toShot(file: File): Promise<Shot> {
   };
 }
 
+
+/**
+ * Takes the reader to the part of the page that just changed.
+ *
+ * On a phone the form and the result are stacked, not side by side, so
+ * pressing the button scrolls nothing and shows nothing: the wait, the
+ * listing and any error all appear below the fold, and the page looks like it
+ * ignored the tap. Every visitor arriving from a video is on a phone.
+ *
+ * It only moves the page when the target is actually out of view, so on a
+ * desktop - where the result is already sitting beside the form - nothing
+ * jumps. And it asks for a smooth scroll, which the reduced-motion rule in
+ * globals.css turns into an instant one for anyone who set that.
+ */
+export function useRevealOnChange(active: boolean): React.RefObject<HTMLDivElement | null> {
+  const target = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!active) return;
+    const node = target.current;
+    if (!node) return;
+
+    const box = node.getBoundingClientRect();
+    const alreadyVisible = box.top >= 0 && box.top < window.innerHeight * 0.6;
+    if (alreadyVisible) return;
+
+    node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [active]);
+
+  return target;
+}
+
 export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signedIn: boolean }) {
   const [shots, setShots] = useState<Shot[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>(['ebay']);
@@ -68,6 +100,9 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
   const [quota, setQuota] = useState(initialQuota);
   const [active, setActive] = useState<Platform>('ebay');
   const [over, setOver] = useState(false);
+
+  // The result column, so a phone is taken to it when something appears there.
+  const output = useRevealOnChange(busy || Boolean(listing));
   const fileInput = useRef<HTMLInputElement>(null);
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
@@ -248,7 +283,7 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
         <QuotaBar quota={quota} signedIn={signedIn} />
       </div>
 
-      <div>
+      <div ref={output}>
         {busy && !listing && <Pending photo={shots[0]?.preview} platforms={platforms.length} />}
         {!busy && !listing && <Empty />}
         {listing && (

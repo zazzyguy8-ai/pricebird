@@ -8,11 +8,12 @@ export const metadata: Metadata = {
     template: '%s · Pricebird',
   },
   description:
-    'Photograph anything you are selling. Get a price range and a finished listing - title, description '
-    + 'and keywords - for eBay, Vinted, Depop, Facebook Marketplace, Poshmark, Mercari or Etsy.',
+    'Photograph what you sourced. Get a price range and a finished listing - title, description '
+    + 'and keywords - for eBay, Vinted, Depop, Facebook Marketplace, Poshmark, Mercari or Etsy. '
+    + 'Built for people who list thirty things a week, not one.',
   openGraph: {
     title: 'Pricebird — price it, then list it',
-    description: 'Snap it. Price it. List it. A phone photo becomes a priced marketplace listing in about twenty seconds.',
+    description: 'For resellers with a pile to get through. A phone photo becomes a priced marketplace listing in about twenty seconds.',
     type: 'website',
   },
 };

@@ -6,6 +6,11 @@ import { PLANS } from '@/lib/billing/plans';
  * The landing page, written for one person: somebody who sells second-hand
  * and already knows listing is the boring part. It does not explain AI, it
  * shows the output, because the output is the argument.
+ *
+ * It used to open with "anything you are selling", which is nobody. A reseller
+ * reads "sourced" and hears their own word; someone selling one old coat still
+ * understands it. The volume line does the rest of the narrowing - thirty a
+ * week is the person who pays monthly, and one a year is not.
  */
 
 const PROBLEMS = [
@@ -133,9 +138,9 @@ export default function Home() {
                 <span className="pill pill-accent">5 free · no signup · 20 at a time</span>
                 <h1>What&apos;s it worth?<br /><span>Ask the bird.</span></h1>
                 <p className="lede">
-                  Photograph anything you are selling. Pricebird reads the photo and gives you a
-                  price range — plus the title, the description and the search keywords, sized for
-                  whichever marketplace you list on.
+                  Photograph what you sourced. You get a price range, a title sized for each
+                  marketplace, the description and the search keywords — flaws named, character
+                  limits respected. Built for people listing thirty things a week, not one.
                 </p>
                 <div className="row">
                   <Link href="/app" className="btn btn-primary">Price something free</Link>

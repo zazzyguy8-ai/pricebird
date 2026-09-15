@@ -4,8 +4,53 @@ import { Footer, Nav } from '@/components/chrome';
 import { UpgradeButton } from '@/components/upgrade-button';
 import { PLANS, PRICE_ENV } from '@/lib/billing/plans';
 
-export const metadata: Metadata = { title: 'Pricing' };
+export const metadata: Metadata = {
+  title: 'Pricing',
+  description: 'Five listings free, no card. Then $7 a month, cancelled in one click from inside the app.',
+};
 export const dynamic = 'force-dynamic';
+
+/**
+ * A page that argues rather than lists.
+ *
+ * The version this replaces was two columns of ticks, which answers "what do
+ * I get" and leaves "why would I pay" to the reader. For a seven dollar
+ * subscription the second question is the only one that matters, and its
+ * answer is not a feature - it is that one avoided return, or one item found
+ * by a buyer who would otherwise have scrolled past, covers a year of it.
+ *
+ * It also quietly fixed a lie. The old page promised listings "saved and
+ * searchable"; they are saved, and there is no search - the account page
+ * shows the last twelve. Nothing is worth less than a paid feature that does
+ * not exist, and this audience checks.
+ */
+
+const WHY = [
+  {
+    title: 'A return costs more than a year of this',
+    body: 'Postage out, postage back, and an item that is now second-hand twice. Buyers forgive '
+      + 'wear they were told about and open cases over wear they discover, so every scuff and '
+      + 'bobble in the photo goes in the description whether you noticed it or not.',
+  },
+  {
+    title: 'Half your title is doing nothing',
+    body: 'eBay gives you 80 characters and most listings use 40. The other 40 are the searches '
+      + 'you never appear in. Each marketplace gets its own title here, written to its own limit, '
+      + 'and the limit is enforced in code rather than hoped for.',
+  },
+  {
+    title: 'The price is the part you guess at',
+    body: 'You get a range - what it sells for this week, what it sells for with patience - and '
+      + 'the reasoning in plain words, so you can overrule it. It is an estimate from a '
+      + 'photograph and it says so. Nobody here pretends to have checked sold listings.',
+  },
+];
+
+const NOT_PAYING_FOR = [
+  'Posting for you. You copy and paste. Nothing goes out in your name from a machine that has never seen the item.',
+  'Storing your photos. The image is read and dropped. Only the text of the listing is kept.',
+  'A contract. One click cancels, and it keeps working until the period you paid for ends.',
+];
 
 export default function PricingPage() {
   // The annual plan only appears once its price exists in Stripe, so a
@@ -19,12 +64,12 @@ export default function PricingPage() {
       <main>
         <section>
           <div className="shell stack" style={{ gap: 34 }}>
-            <div className="stack" style={{ gap: 12, maxWidth: 620 }}>
+            <div className="stack" style={{ gap: 12, maxWidth: 640 }}>
               <span className="eyebrow">Pricing</span>
               <h2>Cheaper than one returned parcel.</h2>
               <p className="lede">
-                Five listings free, no card. After that it is seven dollars a month, and you can
-                stop it in one click from inside the app.
+                Five listings free, no card, no email. After that seven dollars a month — about
+                the fee on one thirty-pound sale — and one click stops it from inside the app.
               </p>
             </div>
 
@@ -33,14 +78,21 @@ export default function PricingPage() {
                 <div className="stack" style={{ gap: 6 }}>
                   <span className="eyebrow">Free</span>
                   <span className="plan-price">$0</span>
-                  <p className="dim small">{PLANS.free.limit} listings, then it stops. No card, no email.</p>
+                  <p className="dim small">
+                    {PLANS.free.limit} listings, then it stops. No card, no email, no trial that
+                    quietly becomes a subscription.
+                  </p>
                 </div>
                 <ul>
-                  <li>All seven marketplaces</li>
-                  <li>Price range and condition grade</li>
+                  <li>Everything unlocked — all seven marketplaces, bulk, and fixing an old listing</li>
+                  <li>Price range, condition grade and the flaws it found</li>
                   <li>Up to four photos per item</li>
-                  <li>Bulk mode — limited by the 5, but you can see it work</li>
+                  <li>Your house style, saved and applied to every listing</li>
                 </ul>
+                <p className="small faint" style={{ marginTop: 4 }}>
+                  Five is enough to find out whether it describes <em>your</em> things correctly,
+                  and not enough to run a shop on. That is the whole design.
+                </p>
                 <div className="grow" />
                 <Link href="/app" className="btn btn-ghost btn-block">Start writing</Link>
               </article>
@@ -48,16 +100,24 @@ export default function PricingPage() {
               <article className="card plan plan-featured">
                 <div className="stack" style={{ gap: 6 }}>
                   <span className="eyebrow accent">Pro</span>
-                  <span className="plan-price">$7<span style={{ fontSize: 17, color: 'var(--text-dim)' }}> / month</span></span>
-                  <p className="dim small">{yearly ? 'Or $69 a year — two months off.' : 'Cancel any time, in one click.'}</p>
+                  <span className="plan-price">
+                    $7<span style={{ fontSize: 17, color: 'var(--text-dim)' }}> / month</span>
+                  </span>
+                  <p className="dim small">
+                    {yearly ? 'Or $69 a year — two months off.' : 'Cancel any time, in one click.'}
+                  </p>
                 </div>
                 <ul>
-                  <li>Unlimited listings in practice ({PLANS.pro.limit} a month fair use)</li>
-                  <li>The whole pile: 20 items at once, and a CSV for bulk uploaders</li>
-                  <li>Every marketplace, every time — write once, paste everywhere</li>
-                  <li>Your listings saved and searchable</li>
-                  <li>Cancel in one click, keeps working to the end of the period</li>
+                  <li>Listings without counting them ({PLANS.pro.limit} a month fair use — nobody photographing by hand gets near it)</li>
+                  <li>Twenty photos in one go, exported as a CSV for bulk upload</li>
+                  <li>Every stale listing you own, rewritten with the reason it was not selling</li>
+                  <li>Your last twelve listings kept, so a phone and a laptop show the same work</li>
+                  <li>One click cancels, and it runs to the end of the period you paid for</li>
                 </ul>
+                <p className="small faint" style={{ marginTop: 4 }}>
+                  Pro is for the evening you photograph twenty things, not the one where you list a
+                  jacket. If you are not having that evening, stay on free.
+                </p>
                 <div className="grow" />
                 <div className="stack" style={{ gap: 9 }}>
                   <UpgradeButton interval="monthly">Go Pro — $7/month</UpgradeButton>
@@ -68,7 +128,26 @@ export default function PricingPage() {
               </article>
             </div>
 
-            <p className="small faint" style={{ maxWidth: 620 }}>
+            <div className="stack" style={{ gap: 16 }}>
+              <h3>What the seven dollars is actually for</h3>
+              <div className="grid-3">
+                {WHY.map((item) => (
+                  <div key={item.title} className="card card-tight stack" style={{ gap: 8 }}>
+                    <strong>{item.title}</strong>
+                    <p className="small dim">{item.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card stack" style={{ gap: 12 }}>
+              <h3 style={{ fontSize: 20 }}>What you are not paying for</h3>
+              <ul className="stack" style={{ gap: 8, margin: 0, paddingLeft: 18 }}>
+                {NOT_PAYING_FOR.map((line) => <li key={line} className="small dim">{line}</li>)}
+              </ul>
+            </div>
+
+            <p className="small faint" style={{ maxWidth: 640 }}>
               Payments run through Stripe; no card details ever touch this app. Prices in USD,
               charged in your card&apos;s currency at Stripe&apos;s rate.
             </p>

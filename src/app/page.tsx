@@ -29,6 +29,38 @@ const STEPS = [
   { n: 3, title: 'Copy and paste', body: 'Title, description, keywords, price. Around twenty seconds from photo to listed.' },
 ];
 
+/**
+ * The three ways in.
+ *
+ * A landing page that only shows one photo becoming one listing sells a
+ * novelty. The two that make it a subscription - the pile, and the four
+ * hundred listings already sitting there not selling - were invisible here,
+ * which meant the strongest argument for paying was one nobody read.
+ */
+const MODES = [
+  {
+    href: '/app',
+    eyebrow: 'One item',
+    title: 'Photograph it',
+    body: 'One photo, and you get a title per marketplace, a description, the search keywords and '
+      + 'a price range. About twenty seconds.',
+  },
+  {
+    href: '/bulk',
+    eyebrow: 'The whole pile',
+    title: 'Twenty at once',
+    body: 'Empty the bag onto the bed, photograph everything, drop the lot in. Out comes a CSV '
+      + 'your marketplace can bulk upload.',
+  },
+  {
+    href: '/relist',
+    eyebrow: 'What you already listed',
+    title: 'Fix what is not selling',
+    body: 'Paste a listing that has been sitting there. You get the reason first - the title '
+      + 'wasting forty of its eighty characters, the condition nobody stated - then the rewrite.',
+  },
+];
+
 const HONESTY = [
   ['It will not invent a size.', 'If the label is not readable in the photo, the size comes back empty and you get asked for it. A made-up size is a return.'],
   ['It will not pretend to check sold listings.', 'The price is an estimate from the photo and typical resale bands, and it says so. Anything else would be a lie with a number on it.'],
@@ -40,6 +72,8 @@ const FAQ = [
   ['Which marketplaces does it write for?', 'eBay, Vinted, Depop, Facebook Marketplace, Poshmark, Mercari and Etsy. Each has its own title limit, tone and hashtag rules, and each gets its own version.'],
   ['Does it post the listing for me?', 'No, and that is deliberate. You copy and paste. Nothing gets published in your name by a machine that has never seen the item in person.'],
   ['What if the description is wrong?', 'Edit it. It is text in a box. The point is starting from something 90% right instead of an empty field at eleven at night.'],
+  ['I already have listings that are not selling. Can it help those?', 'That is what Fix a listing is for. Paste the title and description of something already live and it names what is wrong - a title using half its characters, a condition nobody stated, no measurements on something where fit decides the sale - and then rewrites it. No photo needed.'],
+  ['Will it sound like me or like a robot?', 'Set your house style once and every listing after it uses your tone, your postage line and your returns line. Those two lines are added word for word and never reworded - a paraphrased returns policy is a promise you did not make.'],
   ['Can I cancel?', 'One click in the billing portal, and it keeps working until the period you paid for ends.'],
 ];
 
@@ -113,6 +147,30 @@ export default function Home() {
                   <h3>{s.title}</h3>
                   <p className="dim" style={{ fontSize: 14.5 }}>{s.body}</p>
                 </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div className="shell stack" style={{ gap: 28 }}>
+            <div className="stack" style={{ gap: 10, maxWidth: 620 }}>
+              <span className="eyebrow">Three ways in</span>
+              <h2>One thing, the whole pile, or the ones already sitting there.</h2>
+              <p className="lede">
+                And whichever you use, it writes the way you write: set your postage line, your
+                returns line and the words you refuse to use once, on{' '}
+                <Link href="/account" className="accent">your account</Link>, and every listing
+                comes back carrying them.
+              </p>
+            </div>
+            <div className="grid-3">
+              {MODES.map((mode) => (
+                <Link key={mode.href} href={mode.href} className="card card-tight stack" style={{ gap: 8 }}>
+                  <span className="eyebrow">{mode.eyebrow}</span>
+                  <h3 style={{ fontSize: 19 }}>{mode.title}</h3>
+                  <p className="dim small">{mode.body}</p>
+                </Link>
               ))}
             </div>
           </div>

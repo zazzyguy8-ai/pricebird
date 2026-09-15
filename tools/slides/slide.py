@@ -86,6 +86,9 @@ def main():
     ap.add_argument('--at', default='middle', choices=['top', 'middle', 'bottom'])
     ap.add_argument('--size', type=int, default=92)
     ap.add_argument('--handle', default='')
+    # Photos do not put their subject in the same place twice. This nudges the
+    # caption off whatever it landed on - negative is up.
+    ap.add_argument('--offset', type=int, default=0)
     args = ap.parse_args()
 
     base = cover(Image.open(args.photo).convert('RGB'))
@@ -114,6 +117,7 @@ def main():
     else:
         top = (H - block) // 2
 
+    top = max(TOP_SAFE, min(top + args.offset, H - BOTTOM_SAFE - block))
     y = draw_block(draw, lines, font, top, stroke=round(font.size * 0.09))
     if sub_lines:
         draw_block(draw, sub_lines, sub_font, y + 10, stroke=round(sub_font.size * 0.09))

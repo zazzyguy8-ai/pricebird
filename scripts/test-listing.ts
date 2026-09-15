@@ -9,6 +9,7 @@
  */
 import assert from 'node:assert/strict';
 import { generateListing, ListingFailure } from '../src/lib/listing/generate';
+import { LISTING_SYSTEM } from '../src/lib/listing/prompts';
 import { fitTitle, PLATFORM_SPECS, PLATFORMS } from '../src/lib/listing/platforms';
 import { renderFor, ListingSchema, type Listing } from '../src/lib/listing/schema';
 import { DEFAULT_PROFILE, SellerProfileSchema, profileRules, readProfile } from '../src/lib/listing/profile';
@@ -536,6 +537,34 @@ async function theExpensiveHalfOfEveryRequestIsCached(): Promise<void> {
   console.log('  ✓ the tool schema and system prompt are cached, the photo is not');
 }
 
+/**
+ * The title rules reach the model, and say the right thing.
+ *
+ * Added after watching a real listing come back as "Harlem Eagles graphic
+ * tee, size M, maroon, good condition" - fifty-seven of a hundred characters,
+ * fourteen of them spent on two words nobody has ever typed into a search
+ * box, while "eagle crest", "varsity" and "crew neck" were all visible in the
+ * photo and all left out. The landing page criticises exactly that phrase.
+ * The product was doing it.
+ *
+ * The exception is tested too, because getting it wrong the other way makes
+ * new-with-tags listings worse: on Vinted and Depop people really do search
+ * for unworn stock.
+ */
+function theTitleIsTreatedAsSearch(): void {
+  const rules = LISTING_SYSTEM;
+
+  assert.match(rules, /title is a search query/i, 'the title rule is missing');
+  assert.match(rules, /good\s*\n?\s*condition/i, 'the rule must name the phrase it is banning');
+  assert.match(rules, /new with tags|BNWT/i, 'the tags exception must survive - it is a real search term');
+  assert.match(rules, /does not restate the title/i, 'the description must not repeat the title');
+
+  // The rule is worth nothing if it never reaches the request.
+  assert.match(rules, /characters of search left on the table/i, 'the unused-characters rule is missing');
+
+  console.log('  ✓ the title is written as search, and the tags exception survives');
+}
+
 async function main(): Promise<void> {
   console.log('listing');
   await wiring();
@@ -552,6 +581,7 @@ async function main(): Promise<void> {
   await relistAsksRatherThanInvents();
   diagnosisIsOptionalEverywhereElse();
   await theExpensiveHalfOfEveryRequestIsCached();
+  theTitleIsTreatedAsSearch();
   console.log('all listing tests passed\n');
 }
 

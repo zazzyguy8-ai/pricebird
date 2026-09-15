@@ -344,7 +344,19 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
         {!busy && !listing && <Empty />}
         {listing && (
           <div className="stack" style={{ gap: 14 }}>
-            <PostageNudge profile={profile} onSaved={setProfile} />
+            {/*
+              * The listing first, always.
+              *
+              * The nudge started life above it and pushed the thing the seller
+              * just waited twenty seconds for off the bottom of a phone
+              * screen: they tapped the button and got a settings question.
+              * It is also the frame every screen recording of this product
+              * shows, so above the result it would replace the one moment the
+              * whole thing is built around.
+              *
+              * Under the finished listing is where it was always meant to be,
+              * and where its own comment said it was.
+              */}
             <Result
               listing={listing}
               platforms={platforms}
@@ -352,6 +364,7 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
               active={platforms.includes(active) ? active : platforms[0]}
               onSelect={setActive}
             />
+            <PostageNudge profile={profile} onSaved={setProfile} />
           </div>
         )}
       </div>

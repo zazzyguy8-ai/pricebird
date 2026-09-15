@@ -96,17 +96,7 @@ export function PostageNudge({ profile, onSaved }: {
 
   return (
     <div className="card stack" style={{ gap: 10 }}>
-      <div className="spread" style={{ alignItems: 'start', gap: 10 }}>
-        <strong style={{ fontSize: 15 }}>Add your postage line to every listing?</strong>
-        <button
-          type="button"
-          className="btn-quiet"
-          aria-label="Not now"
-          onClick={() => { remember(); setState('gone'); }}
-        >
-          Not now
-        </button>
-      </div>
+      <strong style={{ fontSize: 15 }}>Add your postage line to every listing?</strong>
       <p className="small dim" style={{ marginTop: -4 }}>
         Written once, added word for word to the end of every description you make after this —
         never reworded, and never cut off by a character limit.
@@ -129,8 +119,15 @@ export function PostageNudge({ profile, onSaved }: {
         >
           {state === 'saving' ? 'Saving…' : 'Use this every time'}
         </button>
-        <Link href="/account" className="small accent">Or set the whole house style</Link>
+        <button
+          type="button"
+          className="btn-quiet"
+          onClick={() => { remember(); setState('gone'); }}
+        >
+          Not now
+        </button>
       </div>
+      <Link href="/account" className="small accent">Or set the whole house style</Link>
     </div>
   );
 }

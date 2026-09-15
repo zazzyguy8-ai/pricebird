@@ -285,6 +285,16 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
           </div>
         )}
 
+        {/*
+          * Nothing below this line means anything until there is a photo.
+          *
+          * The page used to open on a dropzone plus a marketplace picker, a
+          * currency select and a notes box: four controls to read before the
+          * one that matters, which made a tool look like a form. They appear
+          * the moment a photo does, which is also the moment they become
+          * answerable.
+          */}
+        {shots.length > 0 && (<>
         <div className="field">
           <span className="field-label">Marketplace</span>
           <div className="choices">
@@ -326,9 +336,10 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
           />
         </div>
 
-        <button type="button" className="btn btn-primary btn-block" disabled={shots.length === 0 || busy} onClick={submit}>
+        <button type="button" className="btn btn-primary btn-block" disabled={busy} onClick={submit}>
           {busy ? <><span className="spinner" /> Reading the photo…</> : 'Write the listing'}
         </button>
+        </>)}
 
         {error && (
           needsUpgrade
@@ -390,6 +401,18 @@ export function QuotaBar({ quota, signedIn }: { quota: Quota; signedIn: boolean 
   const pct = Math.min(100, Math.round((quota.used / quota.limit) * 100));
   const pro = quota.plan === 'pro';
 
+  /*
+   * Nothing to report before the first listing.
+   *
+   * On a free account that has spent nothing, this said "5 of 5 free listings
+   * left" above an empty progress bar - a status line about an event that has
+   * not happened, sitting between the photo button and the example listing and
+   * pushing the example most of a phone screen further down. The count matters
+   * from the first one spent; the "Go Pro" link it also carried is in the nav
+   * on this page anyway, so nothing here goes missing.
+   */
+  if (!pro && quota.used === 0) return null;
+
   return (
     <div className="card card-tight stack" style={{ gap: 8 }}>
       <div className="spread">
@@ -425,13 +448,52 @@ export function QuotaBar({ quota, signedIn }: { quota: Quota; signedIn: boolean 
   );
 }
 
+/**
+ * The first frame of the whole product.
+ *
+ * This used to be a bordered box reading "Nothing read yet", which is the
+ * worst possible thing to put in front of somebody who has not decided
+ * whether to bother: an empty container, announcing its own emptiness, next
+ * to a form. Somebody outside this repo opened the app and said it had no
+ * hook, and that box was the hook it did not have.
+ *
+ * So the empty state shows a finished listing instead. Not a promise about
+ * one - the real shape, the character count, the flaw named in the
+ * description, the price with its two ends. You can see what you would get
+ * before you spend a photo finding out, and the example says plainly that it
+ * is one, because this audience checks.
+ */
 function Empty() {
   return (
-    <div className="card stack" style={{ gap: 10, minHeight: 280, justifyContent: 'center', textAlign: 'center' }}>
-      <h3>Nothing read yet</h3>
-      <p className="dim" style={{ fontSize: 14.5, maxWidth: 380, marginInline: 'auto' }}>
-        Add a photo on the left. One is enough to start — a shot of the label and a shot of any damage
-        make the difference between a listing and a good one.
+    <div className="card stack" style={{ gap: 13 }}>
+      <div className="spread">
+        <span className="out-label">Example · eBay</span>
+        <span className="pill">yours appears here</span>
+      </div>
+
+      <div className="stack" style={{ gap: 2 }}>
+        <span className="out-label">Suggested price</span>
+        <div className="price-row">
+          <span className="price-big">£95</span>
+          <span className="price-range">£78 quick · £120 patient</span>
+        </div>
+      </div>
+
+      <div className="out-field">
+        <div className="out-head"><span className="out-label">Title · 74/80</span></div>
+        <div className="out-body">Carhartt WIP Detroit Jacket Brown Corduroy Collar Duck Canvas Mens Size L</div>
+      </div>
+
+      <div className="out-field">
+        <div className="out-head"><span className="out-label">Description</span></div>
+        <div className="out-body" style={{ fontSize: 14.5 }}>
+          Brown duck canvas, corduroy collar, blanket lined. Size L on the label.{'\n'}
+          Fading at the cuffs and a small paint mark on the left sleeve, both photographed.
+        </div>
+      </div>
+
+      <p className="small faint" style={{ marginTop: -2 }}>
+        Add a photo and this fills with yours. About twenty seconds.
       </p>
     </div>
   );

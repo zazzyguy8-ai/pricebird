@@ -8,7 +8,7 @@ import { quotaFor, type Quota } from '@/lib/quota';
 export const metadata: Metadata = {
   title: 'Write a listing',
   description:
-    'Photograph anything you are selling and get a finished listing back - a title sized for each '
+    'Photograph what you sourced and get a finished listing back - a title sized for each '
     + 'marketplace, a description that names the flaws, the search keywords and a price range. '
     + 'Five free, no account.',
 };
@@ -35,10 +35,13 @@ export default async function AppPage() {
       <Nav cta="Go Pro" ctaHref="/pricing" current="/app" />
       <main className="shell" style={{ paddingBlock: 28 }}>
         <div className="stack" style={{ gap: 20 }}>
+          {/* "Write a listing" was a label on a form, not a reason to use one.
+              The first line now says what you get, because that is the only
+              thing a visitor is deciding about. */}
           <div className="stack" style={{ gap: 6 }}>
-            <h2 style={{ fontSize: 26 }}>Write a listing</h2>
+            <h2 style={{ fontSize: 26 }}>One photo. Everything you need to list it.</h2>
             <p className="dim small">
-              Photo in, listing out. Nothing is published anywhere — you copy what you want.
+              Price, title, description, keywords. Nothing gets published — you copy what you want.
             </p>
           </div>
           <Studio quota={quota} signedIn={Boolean(account?.email)} />

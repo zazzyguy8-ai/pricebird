@@ -27,7 +27,7 @@ function List({ label, hint, values, max, onChange }: {
 
   return (
     <div className="field">
-      <label>{label}</label>
+      <label className="field-label">{label}</label>
       <p className="small faint" style={{ marginTop: -4 }}>{hint}</p>
       <div className="stack" style={{ gap: 6 }}>
         {rows.map((value, index) => (
@@ -93,7 +93,7 @@ export function HouseStyle({ initial }: { initial: SellerProfile }) {
       </div>
 
       <div className="field">
-        <label htmlFor="tone">How you write</label>
+        <label className="field-label" htmlFor="tone">How you write</label>
         <select id="tone" value={profile.tone} onChange={(e) => set('tone', e.target.value as Tone)}>
           {TONES.map((tone) => <option key={tone} value={tone}>{TONE_LABELS[tone]}</option>)}
         </select>
@@ -101,14 +101,14 @@ export function HouseStyle({ initial }: { initial: SellerProfile }) {
 
       <div className="grid-2" style={{ gap: 14 }}>
         <div className="field">
-          <label htmlFor="units">Measurements in</label>
+          <label className="field-label" htmlFor="units">Measurements in</label>
           <select id="units" value={profile.units} onChange={(e) => set('units', e.target.value as 'cm' | 'in')}>
             <option value="cm">Centimetres</option>
             <option value="in">Inches</option>
           </select>
         </div>
         <div className="field">
-          <label htmlFor="ships">Ships from</label>
+          <label className="field-label" htmlFor="ships">Ships from</label>
           <input
             id="ships"
             type="text"
@@ -121,7 +121,7 @@ export function HouseStyle({ initial }: { initial: SellerProfile }) {
       </div>
 
       <div className="field">
-        <label htmlFor="shop">Shop name</label>
+        <label className="field-label" htmlFor="shop">Shop name</label>
         <p className="small faint" style={{ marginTop: -4 }}>
           Used only where a listing reads as coming from a person — Etsy and Depop.
         </p>
@@ -135,7 +135,7 @@ export function HouseStyle({ initial }: { initial: SellerProfile }) {
       </div>
 
       <div className="field">
-        <label htmlFor="postage">Your postage line</label>
+        <label className="field-label" htmlFor="postage">Your postage line</label>
         <p className="small faint" style={{ marginTop: -4 }}>
           Added to the end of every description exactly as you write it — never reworded, and
           never cut off by a character limit.
@@ -151,7 +151,7 @@ export function HouseStyle({ initial }: { initial: SellerProfile }) {
       </div>
 
       <div className="field">
-        <label htmlFor="returns">Your returns line</label>
+        <label className="field-label" htmlFor="returns">Your returns line</label>
         <input
           id="returns"
           type="text"

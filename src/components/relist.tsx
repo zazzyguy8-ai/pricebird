@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { PLATFORM_SPECS, PLATFORMS, type Platform } from '@/lib/listing/platforms';
 import { DEFAULT_PROFILE, type SellerProfile } from '@/lib/listing/profile';
 import type { Listing } from '@/lib/listing/schema';

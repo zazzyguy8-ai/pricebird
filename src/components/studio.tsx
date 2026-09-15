@@ -7,6 +7,7 @@ import { CONDITION_LABELS, renderFor, type Listing } from '@/lib/listing/schema'
 import { DEFAULT_PROFILE, type SellerProfile } from '@/lib/listing/profile';
 import { CURRENCIES, guessCurrency } from '@/lib/listing/currency';
 import { PostageNudge } from '@/components/postage-nudge';
+import { OutOfFree } from '@/components/out-of-free';
 import type { Quota } from '@/lib/quota';
 
 /**
@@ -285,34 +286,9 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
         </button>
 
         {error && (
-          needsUpgrade ? (
-            /*
-             * Running out of free listings is not a fault, and rendering it in
-             * the red error box said it was. That is the one moment in the
-             * whole product where somebody decides whether to pay, and it was
-             * framed as something going wrong - with the same styling as a
-             * rejected photo or a dropped connection.
-             *
-             * So it gets its own card, in the brand colour rather than the
-             * warning one, and it says what is true: the work already done is
-             * still theirs, and here is what the money buys.
-             */
-            <div className="card stack" style={{ gap: 11, borderColor: 'color-mix(in srgb, var(--accent) 45%, var(--line))' }}>
-              <strong style={{ fontSize: 15 }}>That was the last free one.</strong>
-              <p className="small dim">{error}</p>
-              <p className="small dim">
-                Everything you have made is still here and still yours. Pro is $7 a month for as
-                many as you can photograph — plus twenty at once with a CSV to upload them with,
-                and rewriting the listings you already have live.
-              </p>
-              <div className="row" style={{ gap: 9 }}>
-                <Link href="/pricing" className="btn btn-primary">See what Pro costs</Link>
-                <Link href="/account" className="btn btn-ghost">Your listings</Link>
-              </div>
-            </div>
-          ) : (
-            <div className="error">{error}</div>
-          )
+          needsUpgrade
+            ? <OutOfFree reason={error} />
+            : <div className="error">{error}</div>
         )}
 
         <QuotaBar quota={quota} signedIn={signedIn} />

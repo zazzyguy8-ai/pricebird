@@ -7,6 +7,7 @@ import { DEFAULT_PROFILE, type SellerProfile } from '@/lib/listing/profile';
 import type { Listing } from '@/lib/listing/schema';
 import type { Quota } from '@/lib/quota';
 import { Pending, QuotaBar, Result, useRevealOnChange } from '@/components/studio';
+import { OutOfFree } from '@/components/out-of-free';
 import { CURRENCIES, guessCurrency } from '@/lib/listing/currency';
 
 /**
@@ -182,10 +183,9 @@ export function Relist({ quota: initialQuota, signedIn }: { quota: Quota; signed
         </button>
 
         {error && (
-          <div className="error stack" style={{ gap: 10 }}>
-            <span>{error}</span>
-            {needsUpgrade && <Link href="/pricing" className="btn btn-primary">Go Pro — unlimited rewrites</Link>}
-          </div>
+          needsUpgrade
+            ? <OutOfFree reason={error} />
+            : <div className="error">{error}</div>
         )}
 
         <QuotaBar quota={quota} signedIn={signedIn} />

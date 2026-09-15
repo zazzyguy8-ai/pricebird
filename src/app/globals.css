@@ -305,6 +305,17 @@ section { padding-block: clamp(48px, 7vw, 82px); }
  */
 .field-label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); }
 
+/*
+ * A hint must not read as an answer.
+ *
+ * Nothing set a placeholder colour, so the browser's default rendered at
+ * nearly the same brightness as entered text on this dark field - and the
+ * notes example ("Worn twice. Bought in Berlin 2021. Pit to pit 54cm.") looked
+ * like something the seller had already typed. Which means they skip the one
+ * field that most improves the listing, believing it is done.
+ */
+input::placeholder, textarea::placeholder { color: var(--text-faint); opacity: 1; }
+
 input[type='text'], input[type='email'], textarea, select {
   width: 100%;
   background: var(--surface-2);

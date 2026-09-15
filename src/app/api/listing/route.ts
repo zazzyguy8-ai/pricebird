@@ -69,8 +69,13 @@ export async function POST(request: Request) {
       + 'tomorrow - the free tier is meant for trying it out, not for running a shop on.',
     );
     if (!limit.ok) {
+      // Deliberately not `upgrade`. This is a per-connection daily ceiling on
+      // anonymous use, not a spent allowance - and the client renders
+      // `upgrade` as "that was the last free one", which would tell somebody
+      // with all five of their free listings still unused that they had run
+      // out. Two different facts; they had one flag.
       return NextResponse.json(
-        { error: limit.message, upgrade: true },
+        { error: limit.message, rateLimited: true },
         { status: 429, headers: { 'retry-after': String(limit.retryAfter) } },
       );
     }

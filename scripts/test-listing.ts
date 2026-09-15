@@ -10,6 +10,7 @@
 import assert from 'node:assert/strict';
 import { generateListing, ListingFailure } from '../src/lib/listing/generate';
 import { LISTING_SYSTEM } from '../src/lib/listing/prompts';
+import { CACHE_MINIMUM_TOKENS, requireModel } from '../src/lib/models';
 import { fitTitle, PLATFORM_SPECS, PLATFORMS } from '../src/lib/listing/platforms';
 import { renderFor, ListingSchema, type Listing } from '../src/lib/listing/schema';
 import { DEFAULT_PROFILE, SellerProfileSchema, profileRules, readProfile } from '../src/lib/listing/profile';
@@ -520,12 +521,19 @@ async function theExpensiveHalfOfEveryRequestIsCached(): Promise<void> {
   assert.ok(Array.isArray(request.system), 'the system prompt must be a block array to be cacheable');
   assert.equal(request.system[0].cache_control?.type, 'ephemeral', 'the breakpoint is missing');
 
-  // Tools render before system, so one breakpoint covers both. Together they
-  // must clear Sonnet 5's 1024-token minimum or the marker does nothing.
+  // Tools render before system, so one breakpoint covers both. The minimum is
+  // per model and is NOT monotonic across generations - Sonnet 5 caches from
+  // 1,024 tokens and Haiku 4.5 needs 4,096 - so the prefix is checked against
+  // the model actually configured rather than against the one it was written
+  // for. A marker below the minimum is accepted and silently does nothing.
   const prefix = JSON.stringify(request.tools).length + String(request.system[0].text).length;
+  const tokens = prefix / 3.6;
+  const model = requireModel();
+  const minimum = CACHE_MINIMUM_TOKENS[model as keyof typeof CACHE_MINIMUM_TOKENS];
   assert.ok(
-    prefix / 3.6 > 1200,
-    `the cached prefix is only ~${Math.round(prefix / 3.6)} tokens - too close to the 1024 minimum to rely on`,
+    tokens > minimum * 1.15,
+    `the cached prefix is ~${Math.round(tokens)} tokens and ${model} caches from ${minimum} - `
+    + 'the breakpoint would be ignored and every request billed in full',
   );
 
   // And the photo must stay AFTER the breakpoint: it is different every

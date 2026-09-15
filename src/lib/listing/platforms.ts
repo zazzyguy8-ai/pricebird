@@ -42,7 +42,7 @@ export interface PlatformSpec {
 export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
   ebay: {
     key: 'ebay', description: 'long', label: 'eBay', titleMax: 80, descriptionMax: 4000, hashtags: 0,
-    voice: 'keyword-dense and literal: brand, model, size, colour, condition. Buyers arrive from search, not from browsing.',
+    voice: 'keyword-dense and literal: brand, model, size, colour, material. Buyers arrive from search, not from browsing, and condition is not something anyone searches for.',
   },
   vinted: {
     key: 'vinted', description: 'short', label: 'Vinted', titleMax: 100, descriptionMax: 3000, hashtags: 0,
@@ -54,7 +54,7 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
   },
   facebook: {
     key: 'facebook', description: 'short', label: 'Facebook Marketplace', titleMax: 100, descriptionMax: 5000, hashtags: 0,
-    voice: 'local and practical: what it is, condition, whether it works, collection or delivery.',
+    voice: 'local and practical: what it is, whether it works, collection or delivery. Condition belongs in the description, not the title.',
   },
   poshmark: {
     key: 'poshmark', description: 'short', label: 'Poshmark', titleMax: 80, descriptionMax: 1500, hashtags: 3,
@@ -62,7 +62,7 @@ export const PLATFORM_SPECS: Record<Platform, PlatformSpec> = {
   },
   mercari: {
     key: 'mercari', description: 'short', label: 'Mercari', titleMax: 80, descriptionMax: 1000, hashtags: 0,
-    voice: 'direct and factual, condition grade early, shipping weight implied by size.',
+    voice: 'direct and factual. State the condition early in the description - not in the title, which is for the words a buyer types.',
   },
   etsy: {
     key: 'etsy', description: 'long', label: 'Etsy', titleMax: 140, descriptionMax: 4000, hashtags: 13,

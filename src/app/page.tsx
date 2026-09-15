@@ -74,7 +74,7 @@ const AFTER = {
   notes: [
     'Brand, model, size, colour and material all reach the search index.',
     'The mark on the cuff is named before a buyer finds it, which is the difference between a sale and a case.',
-    '$58 to $85, with the reasoning written out so you can overrule it.',
+    '£58 to £85, with the reasoning written out so you can overrule it.',
   ],
 };
 

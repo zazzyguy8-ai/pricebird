@@ -50,9 +50,10 @@ export function PostageNudge({ profile, onSaved }: {
   const [error, setError] = useState<string | null>(null);
   const [asked] = useState(alreadyAsked);
 
-  // Nothing to offer somebody who has already set a house style.
-  if (asked || state === 'gone' || !isDefaultProfile(profile)) return null;
-
+  // The saved case is checked FIRST, because saving is exactly what makes the
+  // profile stop being the default - so the guard below would have hidden the
+  // confirmation the moment it became true, and the card would simply vanish
+  // with no sign that anything had been kept.
   if (state === 'saved') {
     return (
       <div className="note small">
@@ -61,6 +62,9 @@ export function PostageNudge({ profile, onSaved }: {
       </div>
     );
   }
+
+  // Nothing to offer somebody who has already set a house style.
+  if (asked || state === 'gone' || !isDefaultProfile(profile)) return null;
 
   async function save() {
     const postage_line = line.trim();

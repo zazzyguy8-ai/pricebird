@@ -94,8 +94,13 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
     }
   }, []);
 
-  // How many of the queued photos the allowance cannot cover.
-  const overQuota = quota.plan === 'free' ? Math.max(0, rows.length - quota.remaining) : 0;
+  // How many of the photos still waiting the allowance cannot cover.
+  //
+  // Pending, not total: a finished run leaves its rows in place, and counting
+  // those made the banner announce that listings "will not be written"
+  // directly above the listings it had just written.
+  const pending = rows.filter((row) => row.status !== 'done').length;
+  const overQuota = quota.plan === 'free' ? Math.max(0, pending - quota.remaining) : 0;
 
   const patch = (id: string, change: Partial<Row>) =>
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...change } : row)));
@@ -249,9 +254,9 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
       {overQuota > 0 && (
         <div className="note note-warn small">
           {quota.remaining === 0
-            ? `No free listings left, so none of these ${rows.length} will be written.`
+            ? `No free listings left, so none of these ${pending} will be written.`
             : `${quota.remaining} free ${quota.remaining === 1 ? 'listing' : 'listings'} left and `
-              + `${rows.length} photos here — the first ${quota.remaining} will be written and the `
+              + `${pending} still to write — the first ${quota.remaining} will be written and the `
               + `other ${overQuota} will not.`}{' '}
           <Link href="/pricing" className="accent">Pro writes the whole pile.</Link>
         </div>

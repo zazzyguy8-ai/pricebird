@@ -83,7 +83,11 @@ export function useRevealOnChange(active: boolean): React.RefObject<HTMLDivEleme
     const alreadyVisible = box.top >= 0 && box.top < window.innerHeight * 0.6;
     if (alreadyVisible) return;
 
-    node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // An explicit behavior overrides the CSS scroll-behavior rule, so the
+    // reduced-motion preference has to be read here rather than assumed to
+    // have been handled by the stylesheet. It was not.
+    const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    node.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
   }, [active]);
 
   return target;

@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ZodError } from 'zod';
-import { requireModel, supportsEffort } from '@/lib/models';
+import { CACHE_MINIMUM_TOKENS, requireModel, supportsEffort } from '@/lib/models';
 import { redact, readSecret } from '@/lib/secrets';
 import { PLATFORMS, type Platform } from './platforms';
 import { ListingSchema, type Listing } from './schema';
@@ -185,6 +185,35 @@ function logCost(model: string, usage: Anthropic.Usage): void {
   console.info(
     `[listing] ${cents.toFixed(2)}c on ${model} - in ${fresh}, cache ${cacheState} `
     + `(w${written}/r${read}), out ${out}`,
+  );
+}
+
+/**
+ * Says so when the cache breakpoint cannot possibly be doing anything.
+ *
+ * A marker below the model's minimum is accepted and silently ignored, which
+ * costs about a quarter of the inference bill and reports nothing at all. The
+ * estimate is deliberately rough - roughly 3.6 characters per token - because
+ * it only has to answer a yes or no question, and it is compared against the
+ * minimum with margin so a near-miss is called out rather than trusted.
+ *
+ * Warned once per process, since the answer cannot change until a redeploy.
+ */
+let cacheWarned = false;
+
+function warnIfPrefixTooShortToCache(model: string): void {
+  if (cacheWarned) return;
+  const minimum = CACHE_MINIMUM_TOKENS[model as keyof typeof CACHE_MINIMUM_TOKENS];
+  if (!minimum) return;
+
+  const prefixTokens = (JSON.stringify(LISTING_TOOL).length + LISTING_SYSTEM.length) / 3.6;
+  if (prefixTokens > minimum * 1.15) return;
+
+  cacheWarned = true;
+  console.warn(
+    `[listing] the cached prefix is about ${Math.round(prefixTokens)} tokens and ${model} caches `
+    + `from ${minimum}. The breakpoint is being ignored and every request is billed in full. `
+    + 'Use a model with a lower minimum, or stop paying for a marker that does nothing.',
   );
 }
 
@@ -422,6 +451,7 @@ export async function generateListing(input: GenerateInput, options: GenerateOpt
   // breakpoint that silently stops matching costs a quarter of the bill and
   // reports nothing.
   logCost(model, message.usage);
+  warnIfPrefixTooShortToCache(model);
 
   return parse(toolResult(message));
 }

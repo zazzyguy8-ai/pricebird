@@ -45,3 +45,19 @@ export function requireModel(envName = 'VISION_MODEL', fallback: SupportedModel 
 export function supportsEffort(model: string): boolean {
   return model === 'claude-opus-5' || model === 'claude-sonnet-5';
 }
+
+/**
+ * The shortest prefix each model will actually cache.
+ *
+ * Below it a cache_control marker is accepted and silently does nothing - no
+ * error, no warning, just full price on every request. The numbers are not
+ * monotonic across generations, which is exactly why they have to be written
+ * down: Sonnet 5 caches from 1,024 tokens while Haiku 4.5 needs 4,096, so a
+ * prefix that caches on the default model stops caching the moment somebody
+ * sets VISION_MODEL to the cheaper one - and the bill goes up, not down.
+ */
+export const CACHE_MINIMUM_TOKENS: Record<SupportedModel, number> = {
+  'claude-opus-5': 512,
+  'claude-sonnet-5': 1024,
+  'claude-haiku-4-5': 4096,
+};

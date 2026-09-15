@@ -21,7 +21,7 @@ import argparse
 import os
 import sys
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 W, H = 1080, 1920                  # TikTok photo mode, 9:16
 SIDE = 64                          # keeps text clear of the phone's edges
@@ -66,6 +66,51 @@ def fit(draw, text, max_w, start, floor=44):
     return None, None
 
 
+def trim(img):
+    """Drop the empty margin a logo file always ships with.
+
+    Sizing a logo by its file is sizing its whitespace: two marks exported at
+    the same pixel size land at different optical sizes on the slide. Trimming
+    to the ink first makes --logo-h mean the same thing every time.
+    """
+    img = img.convert('RGBA')
+    alpha = img.getchannel('A')
+    box = alpha.getbbox() if alpha.getextrema()[0] < 250 else None
+    if box is None:
+        # Flat white background rather than transparency: measure against the
+        # corner pixel, which is background on every logo export we have seen.
+        rgb = img.convert('RGB')
+        bg = Image.new('RGB', rgb.size, rgb.getpixel((0, 0)))
+        box = ImageChops.difference(rgb, bg).convert('L').point(lambda v: 255 if v > 12 else 0).getbbox()
+    img = img.crop(box) if box else img
+
+    if img.getchannel('A').getextrema()[0] >= 250:
+        # It came from a JPEG, so it has no transparency and a rectangular trim
+        # leaves the background sitting in the corners. App icons are rounded
+        # squares, so rounding the mask to match takes the corners off without
+        # touching white that is part of the mark itself - keying out white
+        # would have eaten the Vinted V.
+        mask = Image.new('L', img.size, 0)
+        ImageDraw.Draw(mask).rounded_rectangle(
+            [0, 0, img.width - 1, img.height - 1],
+            radius=round(min(img.size) * 0.225), fill=255)
+        img.putalpha(mask)
+    return img
+
+
+def place(base, path, height, xy, anchor):
+    mark = trim(Image.open(path))
+    w = round(mark.width * height / mark.height)
+    mark = mark.resize((w, height), Image.LANCZOS)
+    x, y = xy
+    if anchor == 'rb':
+        x, y = x - w, y - height
+    elif anchor == 'mt':
+        x = x - w // 2
+    base.alpha_composite(mark, (x, y))
+    return height
+
+
 def draw_block(draw, lines, font, top, stroke):
     gap = round(font.size * 1.14)
     for i, line in enumerate(lines):
@@ -89,9 +134,11 @@ def main():
     # Photos do not put their subject in the same place twice. This nudges the
     # caption off whatever it landed on - negative is up.
     ap.add_argument('--offset', type=int, default=0)
+    ap.add_argument('--logo', default='', help='brand mark, small, bottom right')
+    ap.add_argument('--badge', default='', help='platform mark, large, under the caption')
     args = ap.parse_args()
 
-    base = cover(Image.open(args.photo).convert('RGB'))
+    base = cover(Image.open(args.photo).convert('RGB')).convert('RGBA')
     draw = ImageDraw.Draw(base)
     max_w = W - SIDE * 2
 
@@ -122,12 +169,21 @@ def main():
     if sub_lines:
         draw_block(draw, sub_lines, sub_font, y + 10, stroke=round(sub_font.size * 0.09))
 
+    if args.badge:
+        place(base, args.badge, 300, (W // 2, y + 34), 'mt')
+
+    if args.logo:
+        # Bottom right, clear of TikTok's own furniture. Small on purpose: a
+        # brand mark that competes with the photo is an advert, and this set
+        # is not one.
+        place(base, args.logo, 190, (W - SIDE, H - BOTTOM_SAFE), 'rb')
+
     if args.handle:
         h_font = ImageFont.truetype(MAIN_FONT, 40)
         draw.text((W - SIDE, H - BOTTOM_SAFE + 120), args.handle, font=h_font,
                   fill=(255, 255, 255, 220), anchor='ra', stroke_width=3, stroke_fill='black')
 
-    base.save(args.out, quality=95)
+    base.convert('RGB').save(args.out, quality=95)
     print(f'{args.out}  {W}x{H}  "{args.text}"')
 
 

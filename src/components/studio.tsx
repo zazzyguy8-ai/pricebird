@@ -119,14 +119,55 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
     setError(null);
+    const all = Array.from(files);
+    if (all.length === 0) return;
+
     const room = MAX_PHOTOS - shots.length;
-    const chosen = Array.from(files).filter((f) => f.type.startsWith('image/')).slice(0, Math.max(0, room));
-    if (chosen.length === 0) return;
+    const images = all.filter((f) => f.type.startsWith('image/'));
+
+    // Silence is the worst answer to a wrong file. Choosing a PDF used to do
+    // nothing at all: no thumbnail, no message, no reason - the seller taps
+    // the button, watches nothing happen, and concludes the site is broken.
+    if (images.length === 0) {
+      setError(
+        all.length === 1
+          ? `${all[0].name} is not a photo. Use a picture of the item — JPEG, PNG, WebP or GIF.`
+          : 'None of those are photos. Use pictures of the item — JPEG, PNG, WebP or GIF.',
+      );
+      return;
+    }
+    if (images.length < all.length) {
+      const dropped = all.length - images.length;
+      setError(dropped === 1
+        ? 'One of those was not a photo and was skipped.'
+        : `${dropped} of those were not photos and were skipped.`);
+    }
+
+    if (room <= 0) {
+      setError(`That is already ${MAX_PHOTOS} photos, which is as many as this reads at once.`);
+      return;
+    }
+
+    const chosen = images.slice(0, room);
+    const skipped = images.length - chosen.length;
+
     try {
       const added = await Promise.all(chosen.map(toShot));
       setShots((current) => [...current, ...added].slice(0, MAX_PHOTOS));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'That photo could not be read.');
+      if (skipped > 0) {
+        setError(`Added ${chosen.length}. ${skipped} more would be over the ${MAX_PHOTOS}-photo limit.`);
+      }
+    } catch {
+      // Whatever the browser says here is written for a developer - "The
+      // source image could not be decoded" is true and useless. What the
+      // person needs is what to do instead.
+      setError(
+        chosen.length === 1
+          ? 'That file could not be opened as a photo. If it came from a message or a screenshot, '
+            + 'try taking a picture of the item instead.'
+          : 'One of those files could not be opened as a photo. Try adding them one at a time to '
+            + 'find which.',
+      );
     }
   }, [shots.length]);
 

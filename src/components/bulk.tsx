@@ -84,15 +84,44 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
     setError(null);
-    const chosen = Array.from(files).filter((f) => f.type.startsWith('image/'));
-    if (chosen.length === 0) return;
+    const all = Array.from(files);
+    if (all.length === 0) return;
+
+    const images = all.filter((f) => f.type.startsWith('image/'));
+
+    // Same silence as the listing page had: a folder with a stray PDF in it
+    // used to lose that file with no sign, and dropping a whole pile in is
+    // exactly when nobody notices one item is missing.
+    if (images.length === 0) {
+      setError('None of those are photos. Use pictures of the items — JPEG, PNG, WebP or GIF.');
+      return;
+    }
+
+    const room = MAX_ITEMS - rows.length;
+    if (room <= 0) {
+      setError(`That is already ${MAX_ITEMS} items, which is as many as one run takes.`);
+      return;
+    }
+
+    const chosen = images.slice(0, room);
+    const dropped = (all.length - images.length) + (images.length - chosen.length);
+
     try {
       const added = await Promise.all(chosen.map(toRow));
       setRows((current) => [...current, ...added].slice(0, MAX_ITEMS));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'One of those photos could not be read.');
+      if (dropped > 0) {
+        setError(
+          `Added ${chosen.length}. ${dropped} left out — either not photos, or over the `
+          + `${MAX_ITEMS}-item limit for one run.`,
+        );
+      }
+    } catch {
+      setError(
+        'One of those files could not be opened as a photo. Add them in smaller batches to find '
+        + 'which one.',
+      );
     }
-  }, []);
+  }, [rows.length]);
 
   // How many of the photos still waiting the allowance cannot cover.
   //

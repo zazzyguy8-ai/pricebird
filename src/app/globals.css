@@ -369,3 +369,59 @@ textarea { resize: vertical; min-height: 72px; }
 
 .meter { height: 5px; border-radius: 999px; background: var(--surface-2); overflow: hidden; border: 1px solid var(--line); }
 .meter i { display: block; height: 100%; background: var(--accent); }
+
+/* --------------------------- considered details -------------------------- */
+
+/*
+ * Headlines that do not leave one word alone on the last line.
+ *
+ * `balance` evens the lines of a short heading; `pretty` only prevents the
+ * orphan, which is what long body copy wants. Both degrade to nothing in
+ * browsers that do not have them, so there is no fallback to write.
+ */
+h1, h2, h3 { text-wrap: balance; }
+p, li { text-wrap: pretty; }
+
+/* Selecting text should look like it belongs to this site. */
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); color: #fff; }
+
+/*
+ * Where the keyboard is.
+ *
+ * The default focus ring disappears against a dark background, and removing
+ * it without a replacement - which is what most dark themes do - makes the
+ * whole app unusable without a mouse. This is the replacement: only on
+ * keyboard focus, never on a click.
+ */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+.btn:focus-visible, .choice:focus-visible { outline-offset: 3px; }
+
+/*
+ * Motion, for people who asked for less of it.
+ *
+ * A spinner and a shimmering skeleton are exactly the kind of movement that
+ * triggers vestibular symptoms, and this app shows both for twenty seconds at
+ * a time. Honouring the setting is one block; not honouring it makes the
+ * product unusable for the people it affects.
+ *
+ * The spinner keeps turning at a fraction of the speed rather than freezing -
+ * a frozen spinner reads as a crash - and the skeleton holds still.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .spinner {
+    animation: spin 2.4s linear infinite !important;
+    animation-duration: 2.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+  .skeleton { background: var(--surface-2); }
+}

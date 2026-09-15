@@ -6,7 +6,7 @@ import { PLATFORM_SPECS, PLATFORMS, type Platform } from '@/lib/listing/platform
 import { DEFAULT_PROFILE, type SellerProfile } from '@/lib/listing/profile';
 import type { Listing } from '@/lib/listing/schema';
 import type { Quota } from '@/lib/quota';
-import { CURRENCIES, QuotaBar, Result } from '@/components/studio';
+import { CURRENCIES, Pending, QuotaBar, Result } from '@/components/studio';
 
 /**
  * The listings you already have, and why they are sitting there.
@@ -20,6 +20,24 @@ import { CURRENCIES, QuotaBar, Result } from '@/components/studio';
  * No photo is required, deliberately. A seller with a backlog has the words
  * to hand long before they have the item back out of the box.
  */
+/**
+ * The same honesty rule as the listing wait, with a different job described.
+ *
+ * Here the model is reading the seller's own words rather than a photo, and
+ * the first thing it does is decide what is wrong with them - so that is what
+ * the lines say. None of them claims a step is finished, because there is no
+ * progress to report.
+ */
+const RELIST_STAGES: [number, string][] = [
+  [0, 'Reading what you wrote.'],
+  [3, 'Counting what the title is not using.'],
+  [7, 'Looking for the facts a buyer needs and cannot find.'],
+  [12, 'Working out which fault costs you the most.'],
+  [17, 'Rewriting it, for each marketplace.'],
+  [23, 'Pricing it for what you described, not for what you asked.'],
+  [32, 'Longer than usual, but still going.'],
+];
+
 export function Relist({ quota: initialQuota, signedIn }: { quota: Quota; signedIn: boolean }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -162,7 +180,14 @@ export function Relist({ quota: initialQuota, signedIn }: { quota: Quota; signed
       </div>
 
       <div>
-        {!listing && (
+        {busy && !listing && (
+          <Pending
+            platforms={platforms.length}
+            stages={RELIST_STAGES}
+            note="Nothing is changed on the marketplace — you copy what you want."
+          />
+        )}
+        {!busy && !listing && (
           <div className="card stack" style={{ gap: 10 }}>
             <h3>What comes back</h3>
             <p className="dim small">

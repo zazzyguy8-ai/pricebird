@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { PLATFORM_SPECS, PLATFORMS, type Platform } from '@/lib/listing/platforms';
 import { CONDITION_LABELS, renderFor, type Listing } from '@/lib/listing/schema';
@@ -249,7 +249,7 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
       </div>
 
       <div>
-        {busy && !listing && <Pending />}
+        {busy && !listing && <Pending photo={shots[0]?.preview} platforms={platforms.length} />}
         {!busy && !listing && <Empty />}
         {listing && (
           <Result
@@ -330,20 +330,96 @@ function Empty() {
   );
 }
 
-function Pending() {
+/**
+ * Twenty seconds is a long time to look at a spinner.
+ *
+ * Long enough to wonder whether it broke, and long enough for the page to
+ * read as a wrapper around somebody else's API rather than a thing that was
+ * built. So the wait shows the seller's own photo - grounding it in their
+ * item rather than a generic shape - and says what is being done to it.
+ *
+ * Every line below is a rule the prompt actually contains, in the order it
+ * asks for them, which is why the list is specific enough to be worth
+ * reading: "a coloured seam is not a stain" is a real instruction that exists
+ * because calling design damage once took real money off a jacket.
+ *
+ * What it must never do is claim a step finished. There is no progress to
+ * report - one request goes out and one response comes back - so nothing here
+ * ticks, completes, or fills a bar. It describes the work, honestly, and the
+ * last line admits when it is taking longer than it should.
+ */
+export const LISTING_STAGES: [number, string][] = [
+  [0, 'Reading the photo.'],
+  [3, 'Looking for a label to read.'],
+  [7, 'Checking the marks — a coloured seam is not a stain.'],
+  [11, 'Grading the condition, conservatively.'],
+  [15, 'Naming what is on it. That is how people search.'],
+  [19, 'Sizing each title to its marketplace.'],
+  [24, 'Working out what it is worth.'],
+  [32, 'Longer than usual, but still going.'],
+];
+
+export function Pending({ photo, platforms, stages = LISTING_STAGES, note }: {
+  photo?: string;
+  platforms: number;
+  stages?: [number, string][];
+  note?: string;
+}) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const started = Date.now();
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 500);
+    return () => clearInterval(timer);
+  }, []);
+
+  const stage = stages.filter(([at]) => at <= elapsed).at(-1)?.[1] ?? stages[0][1];
+
   return (
-    <div className="card stack" style={{ gap: 12 }}>
-      <div className="skeleton" style={{ height: 18, width: '45%' }} />
-      <div className="skeleton" style={{ height: 44 }} />
-      <div className="skeleton" style={{ height: 120 }} />
-      <div className="skeleton" style={{ height: 60, width: '70%' }} />
-      <p className="small faint">Reading the photo, grading the condition, writing the copy.</p>
+    <div className="card stack" style={{ gap: 14 }}>
+      <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+        {photo && (
+          <div className="thumb" style={{ width: 54, height: 54, flex: 'none' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photo} alt="" />
+          </div>
+        )}
+        <div className="stack" style={{ gap: 3, minWidth: 0 }}>
+          <span className="spinner" style={{ display: 'inline-block' }} aria-hidden="true" />
+          <span aria-live="polite" style={{ fontSize: 14.5 }}>{stage}</span>
+        </div>
+      </div>
+
+      {/* Shaped like what is coming, so the page does not jump when it lands. */}
+      <div className="stack" style={{ gap: 10 }}>
+        <div className="skeleton" style={{ height: 14, width: '30%' }} />
+        <div className="skeleton" style={{ height: 40 }} />
+        <div className="skeleton" style={{ height: 14, width: '22%' }} />
+        <div className="skeleton" style={{ height: 96 }} />
+        <div className="skeleton" style={{ height: 58, width: '75%' }} />
+      </div>
+
+      <p className="small faint">
+        {note ?? (platforms > 1
+          ? `Writing ${platforms} versions — one per marketplace, each to its own limit.`
+          : 'One request, one listing. Nothing is published anywhere.')}
+      </p>
     </div>
   );
 }
 
+/**
+ * Copy, with the one failure it can actually have.
+ *
+ * The clipboard API is refused outright in a few real situations - an
+ * insecure origin, an iframe without permission, an older mobile browser -
+ * and the old version swallowed that and silently did nothing, which looks
+ * exactly like a broken button. Now it says so and offers the fallback that
+ * always works: the text is selected, so the long-press menu can take it.
+ */
 export function Copy({ text, label = 'Copy' }: { text: string; label?: string }) {
-  const [done, setDone] = useState(false);
+  const [state, setState] = useState<'idle' | 'done' | 'failed'>('idle');
+
   return (
     <button
       type="button"
@@ -351,14 +427,16 @@ export function Copy({ text, label = 'Copy' }: { text: string; label?: string })
       onClick={async () => {
         try {
           await navigator.clipboard.writeText(text);
-          setDone(true);
-          setTimeout(() => setDone(false), 1600);
+          setState('done');
         } catch {
-          setDone(false);
+          setState('failed');
         }
+        setTimeout(() => setState('idle'), 2200);
       }}
     >
-      {done ? 'Copied' : label}
+      <span aria-live="polite">
+        {state === 'done' ? 'Copied' : state === 'failed' ? 'Select it and copy' : label}
+      </span>
     </button>
   );
 }

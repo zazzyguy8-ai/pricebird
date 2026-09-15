@@ -37,6 +37,49 @@ const STEPS = [
  * hundred listings already sitting there not selling - were invisible here,
  * which meant the strongest argument for paying was one nobody read.
  */
+/**
+ * The same jacket, listed twice.
+ *
+ * Every other section describes the product; this one shows it, which is the
+ * only argument that survives a reader deciding in four seconds - and it was
+ * the thing this page did not have.
+ *
+ * Every number on screen is counted from the strings below rather than
+ * written into the prose. The first draft had them typed by hand and they
+ * disagreed with each other within one screen - the meter said 26, the note
+ * said thirty-one, the headline said forty-nine and the real difference was
+ * forty-three. A page arguing that details cost you money cannot get its own
+ * arithmetic wrong.
+ *
+ * Both are worked examples rather than a customer's result, and the page says
+ * so underneath. This audience checks.
+ */
+const EBAY_TITLE_MAX = 80;
+
+const BEFORE = {
+  title: 'Mens vintage jacket size L',
+  body: 'Good condition, worn a few times. Any questions just ask! Thanks for looking :)',
+  notes: [
+    'No brand, no colour, no material - none of the words a buyer actually types.',
+    '"Good condition" tells a buyer nothing, and the case they open later is about the thing you did not name.',
+    'Priced by what it feels like it is worth.',
+  ],
+};
+
+const AFTER = {
+  title: "Levi's Sherpa Trucker Jacket Mens L Brown Corduroy Collar Denim Lined",
+  body: 'Brown corduroy collar, sherpa lining, four front pockets. Red tab and the Levi\'s patch '
+    + 'are both readable. Small pale mark on the left cuff, photographed. Pit to pit 54cm, '
+    + 'length 66cm. Worn, not faded.',
+  notes: [
+    'Brand, model, size, colour and material all reach the search index.',
+    'The mark on the cuff is named before a buyer finds it, which is the difference between a sale and a case.',
+    '$58 to $85, with the reasoning written out so you can overrule it.',
+  ],
+};
+
+const GAINED = AFTER.title.length - BEFORE.title.length;
+
 const MODES = [
   {
     href: '/app',
@@ -131,6 +174,56 @@ export default function Home() {
                 </article>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section>
+          <div className="shell stack" style={{ gap: 24 }}>
+            <div className="stack" style={{ gap: 10, maxWidth: 640 }}>
+              <span className="eyebrow">The same jacket, listed twice</span>
+              <h2>
+                The difference is{' '}
+                <span className="marked" style={{ whiteSpace: 'nowrap' }}>{GAINED} characters</span>.
+              </h2>
+            </div>
+
+            <div className="compare">
+              <div className="compare-pane">
+                <span className="compare-label">What most of us write</span>
+                <div className="compare-title">{BEFORE.title}</div>
+                <div className="compare-meter">
+                  <i style={{ width: `${Math.round((BEFORE.title.length / EBAY_TITLE_MAX) * 100)}%` }} />
+                </div>
+                <span className="compare-note">
+                  {BEFORE.title.length} of {EBAY_TITLE_MAX} characters used — {EBAY_TITLE_MAX - BEFORE.title.length} wasted
+                </span>
+                <p className="compare-body">{BEFORE.body}</p>
+                <ul className="stack" style={{ gap: 7, margin: 0, paddingLeft: 17 }}>
+                  {BEFORE.notes.map((n) => <li key={n} className="compare-note">{n}</li>)}
+                </ul>
+              </div>
+
+              <div className="compare-pane is-after">
+                <span className="compare-label">What comes back</span>
+                <div className="compare-title">{AFTER.title}</div>
+                <div className="compare-meter">
+                  <i style={{ width: `${Math.round((AFTER.title.length / EBAY_TITLE_MAX) * 100)}%` }} />
+                </div>
+                <span className="compare-note">
+                  {AFTER.title.length} of {EBAY_TITLE_MAX} characters used
+                </span>
+                <p className="compare-body">{AFTER.body}</p>
+                <ul className="stack" style={{ gap: 7, margin: 0, paddingLeft: 17 }}>
+                  {AFTER.notes.map((n) => <li key={n} className="compare-note">{n}</li>)}
+                </ul>
+              </div>
+            </div>
+
+            <p className="small faint" style={{ maxWidth: 640 }}>
+              Both are worked examples rather than a customer&apos;s result. The right-hand one is
+              the shape Pricebird returns — a title per marketplace, the flaws named, and a price
+              range with its reasoning.
+            </p>
           </div>
         </section>
 
@@ -264,6 +357,13 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+      {/* On a phone the only way in is at the top of a long page. This follows
+          the reader down it; on a desktop, where the nav never leaves, it is
+          not rendered at all. */}
+      <div className="sticky-cta">
+        <Link href="/app" className="btn btn-primary btn-block">Start free — 5 listings, no signup</Link>
+      </div>
 
       <Footer />
     </>

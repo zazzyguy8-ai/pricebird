@@ -27,7 +27,20 @@
 
   --text: #f4f4f8;
   --text-dim: #a2a2b8;
-  --text-faint: #6e6e88;
+  /*
+   * Lifted from #6e6e88, which measured 3.52:1 on the lightest surface it sits
+   * on - well under the 4.5 a body-sized string needs, and this is the colour
+   * the small print uses: character counts, "no card, no email", the line
+   * explaining what a field is for. Unreadable small print is not a smaller
+   * problem than unreadable large print; it is the same problem somewhere
+   * nobody looks.
+   *
+   * The smallest lift that clears it on every background, hue and saturation
+   * untouched: 4.58 on surface-2, 4.99 on surface, 5.30 on the page. Still
+   * four times dimmer than entered text, so a placeholder is in no danger of
+   * reading as an answer.
+   */
+  --text-faint: #818199;
 
   --accent: #2563eb;
   --accent-ink: #ffffff;

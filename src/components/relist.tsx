@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { PLATFORM_SPECS, PLATFORMS, type Platform } from '@/lib/listing/platforms';
 import { DEFAULT_PROFILE, type SellerProfile } from '@/lib/listing/profile';
 import type { Listing } from '@/lib/listing/schema';
 import type { Quota } from '@/lib/quota';
-import { CURRENCIES, Pending, QuotaBar, Result, useRevealOnChange } from '@/components/studio';
+import { Pending, QuotaBar, Result, useRevealOnChange } from '@/components/studio';
+import { CURRENCIES, guessCurrency } from '@/lib/listing/currency';
 
 /**
  * The listings you already have, and why they are sitting there.
@@ -43,6 +44,10 @@ export function Relist({ quota: initialQuota, signedIn }: { quota: Quota; signed
   const [description, setDescription] = useState('');
   const [platforms, setPlatforms] = useState<Platform[]>(['ebay']);
   const [currency, setCurrency] = useState('USD');
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+  useEffect(() => {
+    if (!currencyTouched) setCurrency(guessCurrency());
+  }, [currencyTouched]);
   const [active, setActive] = useState<Platform>('ebay');
   const [profile, setProfile] = useState<SellerProfile>(DEFAULT_PROFILE);
   const [listing, setListing] = useState<Listing | null>(null);
@@ -163,7 +168,11 @@ export function Relist({ quota: initialQuota, signedIn }: { quota: Quota; signed
 
         <div className="field" style={{ width: 120 }}>
           <label className="field-label" htmlFor="relist-currency">Currency</label>
-          <select id="relist-currency" value={currency} onChange={(event) => setCurrency(event.target.value)}>
+          <select
+            id="relist-currency"
+            value={currency}
+            onChange={(event) => { setCurrencyTouched(true); setCurrency(event.target.value); }}
+          >
             {CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}
           </select>
         </div>

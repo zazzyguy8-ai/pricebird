@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { PLATFORM_SPECS, PLATFORMS, type Platform } from '@/lib/listing/platforms';
 import { CONDITION_LABELS, renderFor, type Listing } from '@/lib/listing/schema';
 import { DEFAULT_PROFILE, type SellerProfile } from '@/lib/listing/profile';
+import { CURRENCIES, guessCurrency } from '@/lib/listing/currency';
+import { PostageNudge } from '@/components/postage-nudge';
 import type { Quota } from '@/lib/quota';
 
 /**
@@ -17,7 +19,6 @@ import type { Quota } from '@/lib/quota';
  * its own character count - a title that copies clean is the product.
  */
 
-export const CURRENCIES = ['USD', 'GBP', 'EUR', 'CAD', 'AUD', 'PLN', 'CZK', 'SEK'];
 
 /** Longest edge after downscaling. Detail beyond this changes nothing the
  *  model can use and costs upload seconds on a phone connection. */
@@ -91,7 +92,13 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
   const [shots, setShots] = useState<Shot[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>(['ebay']);
   const [profile, setProfile] = useState<SellerProfile>(DEFAULT_PROFILE);
+  // 'USD' for the first paint so the server and the client agree, then the
+  // browser's own region once there is a browser to ask.
   const [currency, setCurrency] = useState('USD');
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+  useEffect(() => {
+    if (!currencyTouched) setCurrency(guessCurrency());
+  }, [currencyTouched]);
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -252,7 +259,11 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
         <div className="row" style={{ gap: 12 }}>
           <div className="field" style={{ width: 120 }}>
             <label className="field-label" htmlFor="currency">Currency</label>
-            <select id="currency" value={currency} onChange={(event) => setCurrency(event.target.value)}>
+            <select
+              id="currency"
+              value={currency}
+              onChange={(event) => { setCurrencyTouched(true); setCurrency(event.target.value); }}
+            >
               {CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}
             </select>
           </div>
@@ -287,13 +298,16 @@ export function Studio({ quota: initialQuota, signedIn }: { quota: Quota; signed
         {busy && !listing && <Pending photo={shots[0]?.preview} platforms={platforms.length} />}
         {!busy && !listing && <Empty />}
         {listing && (
-          <Result
-            listing={listing}
-            platforms={platforms}
-            profile={profile}
-            active={platforms.includes(active) ? active : platforms[0]}
-            onSelect={setActive}
-          />
+          <div className="stack" style={{ gap: 14 }}>
+            <PostageNudge profile={profile} onSaved={setProfile} />
+            <Result
+              listing={listing}
+              platforms={platforms}
+              profile={profile}
+              active={platforms.includes(active) ? active : platforms[0]}
+              onSelect={setActive}
+            />
+          </div>
         )}
       </div>
     </div>

@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { PLATFORM_SPECS, PLATFORMS, type Platform } from '@/lib/listing/platforms';
 import { listingsToCsv } from '@/lib/listing/csv';
 import { renderFor, type Listing } from '@/lib/listing/schema';
 import { DEFAULT_PROFILE, type SellerProfile } from '@/lib/listing/profile';
+import { guessCurrency } from '@/lib/listing/currency';
 import type { Quota } from '@/lib/quota';
 
 /**
@@ -70,7 +71,11 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [platform, setPlatform] = useState<Platform>('vinted');
   const [profile, setProfile] = useState<SellerProfile>(DEFAULT_PROFILE);
-  const [currency, setCurrency] = useState('EUR');
+  const [currency, setCurrency] = useState('USD');
+  const [currencyTouched, setCurrencyTouched] = useState(false);
+  useEffect(() => {
+    if (!currencyTouched) setCurrency(guessCurrency());
+  }, [currencyTouched]);
   const [running, setRunning] = useState(false);
   const [quota, setQuota] = useState(initialQuota);
   const [error, setError] = useState<string | null>(null);
@@ -219,7 +224,7 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
             id="bulk-currency"
             value={currency}
             disabled={running}
-            onChange={(event) => setCurrency(event.target.value)}
+            onChange={(event) => { setCurrencyTouched(true); setCurrency(event.target.value); }}
           >
             {['USD', 'GBP', 'EUR', 'CAD', 'AUD', 'PLN', 'CZK', 'SEK'].map((code) => (
               <option key={code} value={code}>{code}</option>

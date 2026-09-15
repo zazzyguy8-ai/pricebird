@@ -3,6 +3,7 @@ import { getStore, type Account } from '@/lib/db';
 import { PRICE_ENV, planFromStatus, type Interval } from './plans';
 import { REFERRAL_COUPON_ID, REWARD_BONUS_LISTINGS, REWARD_CREDIT_CENTS } from '@/lib/referrals';
 import { redact } from '@/lib/secrets';
+import { track } from '@/lib/funnel';
 
 /**
  * Stripe, and the rule that a plan is only ever written from a verified
@@ -154,6 +155,11 @@ async function openCheckout(account: Account, priceId: string, withReferral: boo
   );
 
   if (!session.url) throw new Error('Stripe created a checkout session with no URL.');
+
+  // Reaching Stripe is the step before paying, and the gap between this
+  // number and the next one is the only way to see a checkout that people
+  // start and abandon.
+  track('checkout-open', withReferral ? 'with a referral' : undefined);
   return session.url;
 }
 
@@ -274,6 +280,7 @@ export async function handleWebhook(rawBody: string, signature: string | null): 
 
   switch (event.type) {
     case 'checkout.session.completed': {
+      track('subscribed');
       const session = event.data.object;
       const accountId = session.client_reference_id;
       const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null;

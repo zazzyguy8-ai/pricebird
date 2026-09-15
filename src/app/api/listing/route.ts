@@ -8,6 +8,7 @@ import { generateListing, ListingFailure, ACCEPTED_IMAGE_TYPES, MAX_IMAGES } fro
 import { PLATFORMS, type Platform } from '@/lib/listing/platforms';
 import { readProfile } from '@/lib/listing/profile';
 import { redact } from '@/lib/secrets';
+import { track } from '@/lib/funnel';
 
 export const runtime = 'nodejs';
 /** Vision plus a full listing runs 10-25s; the platform default would cut it. */
@@ -123,6 +124,18 @@ export async function POST(request: Request) {
   const store = await getStore();
   const saved = await store.saveListing(account.id, body.platforms[0] as Platform, listing);
   const after = await quotaFor(account);
+
+  // The two moments worth counting, decided from the count that already
+  // exists rather than from anything new stored about the person.
+  if (after.used === 1) track('first-listing', body.existing ? 'from a rewrite' : 'from a photo');
+  if (after.plan === 'free' && after.remaining === 0) track('free-spent');
+  if (body.existing) track('relist-run');
+  // The header is set by the bulk page and means nothing on its own: it only
+  // separates twenty single listings from one run of twenty, which is the
+  // difference between a casual seller and the one this is built for.
+  if (request.headers.get('x-pricebird-bulk') === '1' && after.used % 10 === 0) {
+    track('bulk-run', `${after.used} items this month`);
+  }
 
   // The profile travels with the listing so the page renders exactly what the
   // CSV export and the saved copy contain - one source of truth for the text

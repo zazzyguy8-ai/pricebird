@@ -110,7 +110,7 @@ export function Bulk({ quota: initialQuota }: { quota: Quota }) {
     try {
       const response = await fetch('/api/listing', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-pricebird-bulk': '1' },
         body: JSON.stringify({
           photos: [{ media_type: row.media_type, data: row.data }],
           platforms: [platform],

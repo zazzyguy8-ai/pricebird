@@ -39,7 +39,7 @@ export default async function AppPage() {
               The first line now says what you get, because that is the only
               thing a visitor is deciding about. */}
           <div className="stack" style={{ gap: 6 }}>
-            <h2 style={{ fontSize: 26 }}>One photo. Everything you need to list it.</h2>
+            <h1 style={{ fontSize: 26 }}>One photo. Everything you need to list it.</h1>
             <p className="dim small">
               Price, title, description, keywords. Nothing gets published — you copy what you want.
             </p>

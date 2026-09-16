@@ -37,7 +37,7 @@ export default async function SignInPage() {
       <main className="shell" style={{ paddingBlock: 56 }}>
         <div className="stack" style={{ gap: 20, maxWidth: 480 }}>
           <div className="stack" style={{ gap: 8 }}>
-            <h2 style={{ fontSize: 30 }}>Sign in</h2>
+            <h1 style={{ fontSize: 30 }}>Sign in</h1>
             <p className="dim">
               No password. Put in your email, get a code. If you have listings in this browser
               already, they come with you.

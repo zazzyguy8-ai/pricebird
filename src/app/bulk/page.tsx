@@ -29,7 +29,7 @@ export default async function BulkPage() {
       <main className="shell" style={{ paddingBlock: 28, maxWidth: 720 }}>
         <div className="stack" style={{ gap: 20 }}>
           <div className="stack" style={{ gap: 6 }}>
-            <h2 style={{ fontSize: 26 }}>The whole pile</h2>
+            <h1 style={{ fontSize: 26 }}>The whole pile</h1>
             <p className="dim small">
               Photograph everything, drop it all in at once, come back to finished listings and a
               spreadsheet. One item at a time is <Link href="/app" className="accent">over here</Link>.

@@ -150,9 +150,15 @@ img { max-width: 100%; display: block; }
 .btn-ghost { background: transparent; color: var(--text); border-color: var(--line-bright); }
 .btn-ghost:hover:not(:disabled) { border-color: var(--text-faint); background: var(--surface-2); }
 
+/*
+ * Quiet, not small. This is the Copy button on every finished listing and the
+ * "Go Pro" beside the quota - both things a seller taps on a phone, both 34px
+ * tall until now. The type stays 13px; only the box it sits in grows.
+ */
 .btn-quiet {
   background: var(--surface-2); color: var(--text-dim); border-color: var(--line);
   border-radius: var(--radius-sm); padding: 7px 12px; font-size: 13px; font-weight: 500;
+  min-height: 44px;
 }
 .btn-quiet:hover:not(:disabled) { color: var(--text); border-color: var(--line-bright); }
 
@@ -291,12 +297,19 @@ section { padding-block: clamp(48px, 7vw, 82px); }
 
 .choices { display: flex; flex-wrap: wrap; gap: 7px; }
 
+/*
+ * Marketplace chips are the one control on /bulk and /relist you have to hit
+ * before anything happens, and they were 34px tall. A thumb needs 44.
+ */
 .choice {
   border: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--text-dim);
   border-radius: 999px;
-  padding: 6px 13px;
+  padding: 6px 15px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   font: inherit; font-size: 13px;
   cursor: pointer;
 }
@@ -398,6 +411,19 @@ textarea { resize: vertical; min-height: 72px; }
 
 .footer { border-top: 1px solid var(--line); padding-block: 30px; color: var(--text-faint); font-size: 13.5px; }
 .footer a:hover { color: var(--text); }
+
+/*
+ * A tap target, not a word.
+ *
+ * Small print sets its own height from its font size, which on a phone put
+ * the footer links at 21px and the wordmark at 26px. The text stays the size
+ * it was; the box around it grows to something a thumb can actually land on.
+ *
+ * Inline links inside a sentence are deliberately left alone - padding one
+ * out to 44px would push the line it sits in apart, and WCAG exempts them
+ * for exactly that reason.
+ */
+.tap, .brand { min-height: 44px; display: inline-flex; align-items: center; }
 
 .faq { border-top: 1px solid var(--line); padding-block: 18px; }
 .faq h3 { margin-bottom: 6px; }

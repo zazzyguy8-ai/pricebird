@@ -79,7 +79,7 @@ export function Nav({ cta = 'Start free', ctaHref = '/app', current }: {
           <Link
             href={ctaHref}
             className="btn btn-primary"
-            style={{ padding: '8px 16px', fontSize: 14 }}
+            style={{ padding: '11px 16px', fontSize: 14 }}
           >
             {cta}
           </Link>
@@ -94,10 +94,12 @@ export function Footer() {
     <footer className="footer">
       <div className="shell spread">
         <span>© {new Date().getFullYear()} Pricebird</span>
+        {/* The gap is the tap target, not the text. At 13.5px these links
+            were 21px tall on a phone - half the size a thumb needs. */}
         <div className="row" style={{ gap: 18 }}>
-          <Link href="/pricing">Pricing</Link>
-          <Link href="/account">Account</Link>
-          <Link href="/signin">Sign in</Link>
+          <Link href="/pricing" className="tap">Pricing</Link>
+          <Link href="/account" className="tap">Account</Link>
+          <Link href="/signin" className="tap">Sign in</Link>
         </div>
       </div>
     </footer>

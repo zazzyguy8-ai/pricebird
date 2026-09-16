@@ -28,7 +28,7 @@ export default async function AccountPage() {
         <Nav />
         <main className="shell" style={{ paddingBlock: 56 }}>
           <div className="card stack" style={{ gap: 14, maxWidth: 460 }}>
-            <h3>No account in this browser yet</h3>
+            <h1 style={{ fontSize: 24 }}>No account in this browser yet</h1>
             <p className="dim small">
               One appears the first time you write a listing. If you already have one on another
               device, sign in with the email on it.
@@ -71,7 +71,7 @@ export default async function AccountPage() {
       <main className="shell" style={{ paddingBlock: 40 }}>
         <div className="stack" style={{ gap: 22 }}>
           <div className="spread">
-            <h2 style={{ fontSize: 28 }}>Account</h2>
+            <h1 style={{ fontSize: 28 }}>Account</h1>
             <SignOutButton warning={signOutWarning} />
           </div>
 

@@ -33,7 +33,7 @@ export default async function RelistPage() {
       <main className="shell" style={{ paddingBlock: 28 }}>
         <div className="stack" style={{ gap: 20 }}>
           <div className="stack" style={{ gap: 6 }}>
-            <h2 style={{ fontSize: 26 }}>Fix a listing that is not selling</h2>
+            <h1 style={{ fontSize: 26 }}>Fix a listing that is not selling</h1>
             <p className="dim small">
               Paste one that has been sitting there. You get the reason first — named, with what it
               costs you — and then the rewrite.

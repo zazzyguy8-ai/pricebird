@@ -28,28 +28,25 @@ export const dynamic = 'force-dynamic';
 const WHY = [
   {
     title: 'A return costs more than a year of this',
-    body: 'Postage out, postage back, and an item that is now second-hand twice. Buyers forgive '
-      + 'wear they were told about and open cases over wear they discover, so every scuff and '
-      + 'bobble in the photo goes in the description whether you noticed it or not.',
+    body: 'Postage out, postage back, and an item that is second-hand twice. Every scuff in the '
+      + 'photo goes in the description, whether you noticed it or not.',
   },
   {
     title: 'Half your title is doing nothing',
-    body: 'eBay gives you 80 characters and most listings use 40. The other 40 are the searches '
-      + 'you never appear in. Each marketplace gets its own title here, written to its own limit, '
-      + 'and the limit is enforced in code rather than hoped for.',
+    body: 'eBay gives you 80 characters. Most listings use 40. The other 40 are searches you '
+      + 'never appear in.',
   },
   {
     title: 'The price is the part you guess at',
-    body: 'You get a range - what it sells for this week, what it sells for with patience - and '
-      + 'the reasoning in plain words, so you can overrule it. It is an estimate from a '
-      + 'photograph and it says so. Nobody here pretends to have checked sold listings.',
+    body: 'What it sells for this week, what it sells for with patience, and the reasoning in '
+      + 'plain words so you can overrule it. An estimate from a photo, and it says so.',
   },
 ];
 
 const NOT_PAYING_FOR = [
-  'Posting for you. You copy and paste. Nothing goes out in your name from a machine that has never seen the item.',
-  'Storing your photos. The image is read and dropped. Only the text of the listing is kept.',
-  'A contract. One click cancels, and it keeps working until the period you paid for ends.',
+  'Posting for you. You copy and paste.',
+  'Storing your photos. The image is read and dropped.',
+  'A contract. One click cancels.',
 ];
 
 export default function PricingPage() {
@@ -66,7 +63,7 @@ export default function PricingPage() {
           <div className="shell stack" style={{ gap: 34 }}>
             <div className="stack" style={{ gap: 12, maxWidth: 640 }}>
               <span className="eyebrow">Pricing</span>
-              <h2>Cheaper than one returned parcel.</h2>
+              <h1 style={{ fontSize: 'clamp(30px, 6vw, 44px)' }}>Cheaper than one returned parcel.</h1>
               <p className="lede">
                 Five listings free, no card, no email. After that seven dollars a month — about
                 the fee on one thirty-pound sale — and one click stops it from inside the app.
